@@ -360,3 +360,194 @@ def get_it_support_redirect() -> dict:
             "4. Incluya el número de referencia original del caso"
         ]
     }
+
+
+def send_ticket_analysis_email(
+    ticket: dict,
+    classification: dict,
+    recipient_email: Optional[str] = None
+) -> dict:
+    """
+    Send email with AI ticket analysis for ALL tickets.
+    
+    Args:
+        ticket: Ticket/case data
+        classification: AI classification results
+        recipient_email: Override recipient (defaults to NOTIFICATION_EMAIL)
+    """
+    to_email = recipient_email or NOTIFICATION_EMAIL
+    
+    if not to_email:
+        logger.warning("⚠️ No notification email configured")
+        return {"success": False, "error": "No recipient email configured"}
+    
+    # Determine ticket type and styling
+    is_product = classification.get("is_product_complaint", False)
+    is_it = classification.get("is_it_support", False)
+    sentiment = classification.get("sentiment", "neutral")
+    urgency = classification.get("urgency", "medium")
+    product_category = classification.get("product_category", "none")
+    
+    # Type configuration
+    if is_product:
+        type_emoji = "📦"
+        type_label = "QUEJA DE PRODUCTO"
+        type_color = "#EF4444"  # Red
+        type_detail = f"Producto: {product_category.upper()}"
+    elif is_it:
+        type_emoji = "💻"
+        type_label = "SOLICITUD IT SOPORTE"
+        type_color = "#3B82F6"  # Blue
+        type_detail = f"Redirect: {IT_SUPPORT_URL}"
+    else:
+        type_emoji = "📋"
+        type_label = "CONSULTA GENERAL"
+        type_color = "#6B7280"  # Gray
+        type_detail = "Requiere revisión manual"
+    
+    # Urgency colors
+    urgency_colors = {
+        "critical": "#DC2626",
+        "high": "#F59E0B",
+        "medium": "#3B82F6",
+        "low": "#10B981"
+    }
+    urgency_color = urgency_colors.get(urgency, "#6B7280")
+    
+    # Sentiment emojis
+    sentiment_emojis = {
+        "angry": "😠",
+        "frustrated": "😤",
+        "neutral": "😐",
+        "positive": "😊"
+    }
+    sentiment_emoji = sentiment_emojis.get(sentiment, "😐")
+    
+    subject = f"{type_emoji} {type_label}: {ticket.get('Subject', 'Sin asunto')[:50]}"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+            .container {{ max-width: 650px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, {type_color}, #1E3A5F); color: white; padding: 25px; border-radius: 12px 12px 0 0; }}
+            .header h1 {{ margin: 0; font-size: 24px; }}
+            .header p {{ margin: 8px 0 0 0; opacity: 0.9; }}
+            .type-badge {{ display: inline-block; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-weight: bold; margin-top: 15px; }}
+            .content {{ background: #F8FAFC; padding: 25px; }}
+            .metrics {{ display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }}
+            .metric {{ background: white; padding: 15px; border-radius: 10px; flex: 1; min-width: 120px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+            .metric-label {{ font-size: 11px; color: #6B7280; text-transform: uppercase; font-weight: bold; }}
+            .metric-value {{ font-size: 24px; margin-top: 5px; }}
+            .section {{ background: white; padding: 20px; margin: 15px 0; border-radius: 10px; border-left: 4px solid {type_color}; }}
+            .section-title {{ font-weight: bold; color: #1E3A5F; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; }}
+            .reasoning-box {{ background: #FEF3C7; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #F59E0B; }}
+            .reasoning-title {{ font-weight: bold; color: #92400E; margin-bottom: 10px; }}
+            .response-box {{ background: #D1FAE5; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #10B981; }}
+            .footer {{ text-align: center; padding: 20px; color: #6B7280; font-size: 12px; border-top: 1px solid #E5E7EB; }}
+            .urgency-badge {{ display: inline-block; background: {urgency_color}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>{type_emoji} Análisis de Ticket por AI</h1>
+                <p>El agente de inteligencia artificial ha analizado este ticket</p>
+                <div class="type-badge">{type_label}</div>
+            </div>
+            
+            <div class="content">
+                <!-- Metrics Row -->
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="metric-label">Tipo</div>
+                        <div class="metric-value">{type_emoji}</div>
+                        <div style="font-size: 11px; color: #6B7280;">{type_label}</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Sentimiento</div>
+                        <div class="metric-value">{sentiment_emoji}</div>
+                        <div style="font-size: 11px; color: #6B7280;">{sentiment.capitalize()}</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Urgencia</div>
+                        <div class="metric-value"><span class="urgency-badge">{urgency.upper()}</span></div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Confianza</div>
+                        <div class="metric-value" style="color: {type_color};">{classification.get('confidence', 0):.0%}</div>
+                    </div>
+                </div>
+                
+                <!-- Ticket Info -->
+                <div class="section">
+                    <div class="section-title">📋 Información del Ticket</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px 0; color: #6B7280; width: 120px;">Caso #</td><td style="font-weight: bold;">{ticket.get('CaseNumber', ticket.get('Id', 'N/A'))}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Asunto</td><td>{ticket.get('Subject', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Prioridad</td><td>{ticket.get('Priority', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Origen</td><td>{ticket.get('Origin', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Clasificación</td><td><strong>{type_detail}</strong></td></tr>
+                    </table>
+                </div>
+                
+                <!-- Description -->
+                <div class="section">
+                    <div class="section-title">📝 Descripción del Cliente</div>
+                    <div style="white-space: pre-wrap; color: #374151;">{ticket.get('Description', 'Sin descripción')}</div>
+                </div>
+                
+                <!-- AI Reasoning -->
+                <div class="reasoning-box">
+                    <div class="reasoning-title">🤖 Análisis del Agente de IA</div>
+                    <div style="white-space: pre-wrap; font-size: 14px;">{classification.get('reasoning', 'Análisis no disponible')}</div>
+                </div>
+                
+                <!-- Summary -->
+                <div class="section">
+                    <div class="section-title">📊 Resumen</div>
+                    <div style="font-size: 15px; color: #374151;">{classification.get('complaint_summary', ticket.get('Subject', 'N/A'))}</div>
+                </div>
+                
+                {f'''
+                <!-- Suggested Response -->
+                <div class="response-box">
+                    <div style="font-weight: bold; color: #065F46; margin-bottom: 10px;">💬 Respuesta Sugerida por AI</div>
+                    <div style="white-space: pre-wrap; font-size: 14px;">{classification.get('suggested_response', '')}</div>
+                </div>
+                ''' if classification.get('suggested_response') else ''}
+                
+                {f'''
+                <!-- Product Info (if product complaint) -->
+                <div class="section" style="border-left-color: #EF4444;">
+                    <div class="section-title">📦 Información del Producto</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px 0; color: #6B7280; width: 120px;">Categoría</td><td style="font-weight: bold;">{product_category.upper()}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Producto</td><td>{classification.get('product_name') or 'No especificado'}</td></tr>
+                    </table>
+                </div>
+                ''' if is_product else ''}
+                
+                {f'''
+                <!-- IT Support Redirect -->
+                <div class="section" style="border-left-color: #3B82F6; background: #EFF6FF;">
+                    <div class="section-title">💻 Redirección a IT Support</div>
+                    <p>Este ticket ha sido clasificado como solicitud de IT/Soporte técnico.</p>
+                    <p><strong>Portal:</strong> <a href="{IT_SUPPORT_URL}">{IT_SUPPORT_URL}</a></p>
+                </div>
+                ''' if is_it else ''}
+            </div>
+            
+            <div class="footer">
+                <p>🤖 Análisis generado por <strong>Belden AI Sales Agent</strong></p>
+                <p>Powered by LangGraph + GPT-4o-mini + Vertex AI Agent Engine</p>
+                <p style="color: #9CA3AF; font-size: 11px;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return send_email(to_email, subject, html_content)

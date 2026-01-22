@@ -420,14 +420,13 @@ class BeldenSalesAgentApp:
         self.use_llm = use_llm
         
         self._lead_agent = None
-        self._ticket_agent = None
-        self._complaint_agent = None
+        self._complaint_agent = None  # Replaces old ticket triage
         
         logger.info(f"Initializing BeldenSalesAgentApp for project: {project}")
     
     def set_up(self):
         """Set up all sub-agents."""
-        logger.info("Setting up Belden Sales Agent (Lead + Ticket + Complaint workflows)...")
+        logger.info("Setting up Belden Sales Agent (Lead Qualification + Complaint Classification)...")
         
         load_dotenv()
         
@@ -435,7 +434,7 @@ class BeldenSalesAgentApp:
         settings = get_settings()
         settings.configure_langsmith()
         
-        # Initialize all agents
+        # Initialize Lead Qualification agent
         self._lead_agent = LeadQualificationAgentApp(
             project=self.project,
             location=self.location,
@@ -443,13 +442,7 @@ class BeldenSalesAgentApp:
         )
         self._lead_agent.set_up()
         
-        self._ticket_agent = TicketTriageAgentApp(
-            project=self.project,
-            location=self.location,
-            use_llm=self.use_llm
-        )
-        self._ticket_agent.set_up()
-        
+        # Initialize Complaint Classification agent (replaces old ticket triage)
         self._complaint_agent = ComplaintClassificationAgentApp(
             project=self.project,
             location=self.location,
@@ -471,12 +464,12 @@ class BeldenSalesAgentApp:
         
         Args:
             action: The action to perform:
-                - "qualify_lead": Run lead qualification workflow
-                - "triage_ticket": Run ticket triage workflow
-                - "classify_complaint": Classify product complaint vs IT support
+                - "qualify_lead": Qualify a Salesforce lead (sends email if score >= 60%)
+                - "classify_complaint" or "triage_ticket": Classify ticket as Product/IT
+                  (ALWAYS sends AI analysis email)
                 - "health": Health check
             lead_data: Lead data for qualify_lead action
-            case_data: Case data for triage_ticket or classify_complaint action
+            case_data: Case data for classify_complaint action
             use_llm: Override LLM usage
             
         Returns:
@@ -490,10 +483,10 @@ class BeldenSalesAgentApp:
         if action == "qualify_lead":
             return self._lead_agent.qualify_lead(lead_data=lead_data, use_llm=use_llm)
         
-        elif action == "triage_ticket":
-            return self._ticket_agent.triage_ticket(case_data=case_data, use_llm=use_llm)
-        
-        elif action == "classify_complaint":
+        elif action in ["triage_ticket", "classify_complaint"]:
+            # Both actions now use the Complaint Classification workflow
+            # which classifies tickets as Product complaint vs IT Support
+            # and ALWAYS sends an email with the AI analysis
             return self._complaint_agent.classify_complaint(case_data=case_data, use_llm=use_llm)
         
         elif action == "health":
@@ -501,14 +494,19 @@ class BeldenSalesAgentApp:
                 "status": "healthy",
                 "project": self.project,
                 "location": self.location,
-                "workflows": ["lead_qualification", "ticket_triage", "complaint_classification"],
+                "workflows": ["lead_qualification", "complaint_classification"],
+                "actions": {
+                    "qualify_lead": "Qualify Salesforce leads, email if score >= 60%",
+                    "classify_complaint": "Classify as Product/IT, ALWAYS email AI analysis",
+                    "triage_ticket": "Alias for classify_complaint"
+                },
                 "llm_enabled": self.use_llm
             }
         
         else:
             return {
                 "error": f"Unknown action: {action}",
-                "available_actions": ["qualify_lead", "triage_ticket", "classify_complaint", "health"]
+                "available_actions": ["qualify_lead", "classify_complaint", "triage_ticket", "health"]
             }
     
     # Convenience methods for direct invocation
@@ -525,8 +523,14 @@ class BeldenSalesAgentApp:
         case_data: Optional[dict] = None,
         use_llm: Optional[bool] = None
     ) -> dict:
-        """Convenience method for ticket triage."""
-        return self.query("triage_ticket", case_data=case_data, use_llm=use_llm)
+        """
+        Convenience method for ticket classification.
+        
+        Now uses Complaint Classification workflow which:
+        - Classifies ticket as Product complaint vs IT Support
+        - ALWAYS sends email with full AI analysis
+        """
+        return self.query("classify_complaint", case_data=case_data, use_llm=use_llm)
     
     def classify_complaint(
         self,
@@ -537,7 +541,10 @@ class BeldenSalesAgentApp:
         Convenience method for complaint classification.
         
         Classifies if a ticket is a Product complaint or IT Support request.
-        - Product complaint → Sends email to product owner
-        - IT Support → Returns redirect URL to IT portal
+        
+        Key Actions:
+        - ALWAYS sends email with full AI analysis (reasoning, sentiment, urgency)
+        - Product complaint → Includes product details in email
+        - IT Support → Includes IT portal redirect URL in email
         """
         return self.query("classify_complaint", case_data=case_data, use_llm=use_llm)

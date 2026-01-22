@@ -27,6 +27,7 @@ from src.tools import salesforce
 from src.tools.llm import classify_product_complaint_with_llm, ensure_tracing_enabled
 from src.tools.email import (
     send_product_complaint_alert,
+    send_ticket_analysis_email,
     get_it_support_redirect,
     NOTIFICATION_EMAIL
 )
@@ -308,9 +309,10 @@ def execute_actions(state: ComplaintState) -> dict:
     """
     Node 4: Execute the decided action.
     
-    - Send email for product complaints
-    - Record redirect for IT
-    - Update Salesforce case
+    ALWAYS sends email with AI analysis (for ALL ticket types).
+    Also:
+    - Update Salesforce case with comment
+    - Record redirect for IT support
     """
     logger.info("=== NODE: ExecuteActions (Complaint) ===")
     
@@ -327,95 +329,67 @@ def execute_actions(state: ComplaintState) -> dict:
     actions_executed = []
     email_sent = False
     
-    if action == "email_product_owner":
-        # Send email to product owner
-        logger.info("📧 Sending product complaint email...")
-        
-        email_result = send_product_complaint_alert(
-            ticket=case,
-            product_category=classification.get("product_category", "general"),
-            product_name=classification.get("product_name", ""),
-            analysis={
-                "reasoning": classification.get("reasoning", ""),
-                "sentiment": classification.get("sentiment", "neutral"),
-                "urgency": classification.get("urgency", "medium"),
-                "suggested_response": classification.get("suggested_response", "")
-            }
-        )
-        
-        if email_result.get("success"):
-            email_sent = True
-            actions_executed.append(f"email:product_complaint:{email_result.get('to', 'unknown')}")
-            logger.info(f"✅ Email sent successfully to {email_result.get('to')}")
-        else:
-            actions_executed.append("email:product_complaint:failed")
-            logger.warning(f"⚠️ Failed to send email: {email_result.get('error')}")
-        
-        # Update Salesforce case with comment
-        comment = f"""
+    # ========================================================================
+    # 1. ALWAYS SEND EMAIL WITH AI ANALYSIS (for all ticket types)
+    # ========================================================================
+    logger.info("📧 Sending AI analysis email...")
+    
+    email_result = send_ticket_analysis_email(
+        ticket=case,
+        classification=classification,
+        recipient_email=NOTIFICATION_EMAIL
+    )
+    
+    if email_result.get("success") or email_result.get("id"):
+        email_sent = True
+        actions_executed.append(f"email:ai_analysis:{NOTIFICATION_EMAIL}")
+        logger.info(f"✅ AI analysis email sent successfully!")
+    else:
+        actions_executed.append("email:ai_analysis:failed")
+        logger.warning(f"⚠️ Failed to send email: {email_result.get('error')}")
+    
+    # ========================================================================
+    # 2. UPDATE SALESFORCE CASE WITH AI COMMENT
+    # ========================================================================
+    
+    # Determine type label
+    if classification.get("is_product_complaint"):
+        type_emoji = "📦"
+        type_label = "PRODUCT COMPLAINT"
+        type_detail = f"Category: {classification.get('product_category', 'N/A').upper()}\n🏷️ Product: {classification.get('product_name') or 'Not specified'}"
+    elif classification.get("is_it_support"):
+        type_emoji = "💻"
+        type_label = "IT SUPPORT REQUEST"
+        redirect_url = decision.get("redirect_url", "")
+        type_detail = f"Redirect URL: {redirect_url}"
+        actions_executed.append(f"redirect:it_portal:{redirect_url}")
+        logger.info(f"🔗 IT redirect recorded: {redirect_url}")
+    else:
+        type_emoji = "📋"
+        type_label = "GENERAL INQUIRY"
+        type_detail = "Requires manual review"
+    
+    comment = f"""
 🤖 AI Classification Results:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📦 Type: PRODUCT COMPLAINT
-📂 Category: {classification.get('product_category', 'N/A').upper()}
-🏷️ Product: {classification.get('product_name') or 'Not specified'}
+{type_emoji} Type: {type_label}
+{type_detail}
+
 😊 Sentiment: {classification.get('sentiment', 'neutral')}
 ⚡ Urgency: {classification.get('urgency', 'medium')}
 📊 Confidence: {classification.get('confidence', 0):.0%}
 
-📧 Email sent to product owner: {'✅ Yes' if email_sent else '❌ No'}
+📧 AI Analysis Email: {'✅ Sent' if email_sent else '❌ Not sent'}
 
 🤖 AI Reasoning:
 {classification.get('reasoning', 'N/A')}
-        """.strip()
-        
-        salesforce.post_case_comment(case_id, comment)
-        actions_executed.append("sf:post_comment")
-        
-    elif action == "redirect_it":
-        # Record IT redirect
-        redirect_url = decision.get("redirect_url", "")
-        
-        comment = f"""
-🤖 AI Classification Results:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💻 Type: IT SUPPORT REQUEST
 
-Este ticket ha sido identificado como un tema de IT/Soporte técnico.
-
-🔗 Portal de IT Support:
-{redirect_url}
-
-📋 Instrucciones para el cliente:
-1. Visite el portal de IT Support
-2. Inicie sesión con sus credenciales corporativas
-3. Abra un nuevo ticket en la categoría correspondiente
-4. Incluya el número de referencia: {case.get('CaseNumber', case_id)}
-
-🤖 AI Reasoning:
-{classification.get('reasoning', 'N/A')}
-        """.strip()
-        
-        salesforce.post_case_comment(case_id, comment)
-        actions_executed.append("sf:post_comment:it_redirect")
-        actions_executed.append(f"redirect:it_portal:{redirect_url}")
-        logger.info(f"🔗 IT redirect recorded: {redirect_url}")
-        
-    else:
-        # General handling
-        comment = f"""
-🤖 AI Classification Results:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 Type: GENERAL INQUIRY
-
-Este ticket no fue clasificado como queja de producto ni solicitud de IT.
-Requiere revisión manual.
-
-🤖 AI Reasoning:
-{classification.get('reasoning', 'N/A')}
-        """.strip()
-        
-        salesforce.post_case_comment(case_id, comment)
-        actions_executed.append("sf:post_comment:general")
+💬 Suggested Response:
+{classification.get('suggested_response') or 'N/A'}
+    """.strip()
+    
+    salesforce.post_case_comment(case_id, comment)
+    actions_executed.append("sf:post_comment")
     
     logger.info(f"Executed {len(actions_executed)} actions")
     

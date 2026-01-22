@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
 
 from src.graphs.lead_graph import run_lead_qualification, build_lead_graph
-from src.graphs.ticket_graph import run_ticket_triage, build_ticket_graph
+from src.graphs.complaint_graph import run_complaint_classification, build_complaint_graph
 from src.tools import salesforce
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class LeadInput(BaseModel):
 
 
 class TicketInput(BaseModel):
-    """Input for ticket triage endpoint."""
+    """Input for ticket/complaint classification endpoint."""
     case_id: Optional[str] = Field(
         None,
         description="Salesforce Case ID. If not provided, fetches newest case."
@@ -49,7 +49,7 @@ class TicketInput(BaseModel):
     )
     use_llm: bool = Field(
         True,
-        description="Use LLM for intelligent categorization (default: True). Set to False for rule-based."
+        description="Use LLM for intelligent classification (default: True). Set to False for rule-based."
     )
 
 
@@ -245,20 +245,24 @@ async def run_lead_workflow(input_data: LeadInput = None):
 
 
 # ============================================================================
-# Ticket Triage Endpoint
+# Ticket/Complaint Classification Endpoint
 # ============================================================================
 
 @router.post("/run/ticket", response_model=WorkflowResponse)
 async def run_ticket_workflow(input_data: TicketInput = None):
     """
-    Execute Customer Support Ticket Triage workflow.
+    Execute Ticket Classification workflow (Product vs IT Support).
     
-    This endpoint triggers the full ticket triage pipeline:
+    This endpoint triggers the complaint classification pipeline:
     1. Fetch case from Salesforce (or use provided data)
-    2. Categorize ticket (LLM or rule-based)
-    3. Retrieve SAP order context
-    4. Decide action (auto-reply, request info, escalate)
-    5. Execute actions (post comment, update status, assign owner)
+    2. Classify ticket using LLM (Product complaint vs IT Support)
+    3. **ALWAYS send email with full AI analysis** (reasoning, sentiment, urgency)
+    4. Post classification results to Salesforce
+    
+    Classification Types:
+    - **Product Complaint**: Hardware/software issues with Belden products
+    - **IT Support**: Portal access, passwords, internal systems
+    - **General**: Requires manual review
     
     **Demo Usage:**
     ```bash
@@ -270,14 +274,14 @@ async def run_ticket_workflow(input_data: TicketInput = None):
       -H "Content-Type: application/json" \\
       -d '{"use_llm": false}'
     
-    # Process specific case with LLM
+    # Process custom complaint
     curl -X POST http://localhost:8000/run/ticket \\
       -H "Content-Type: application/json" \\
-      -d '{"case_id": "5005g00000XXXXX", "use_llm": true}'
+      -d '{"case_data": {"Id": "test-1", "Subject": "Switch not working", "Description": "Our Hirschmann switch stopped responding"}}'
     ```
     """
     logger.info("=" * 60)
-    logger.info("API: Ticket Triage Workflow Triggered")
+    logger.info("API: Ticket Classification Workflow Triggered")
     logger.info("=" * 60)
     
     start_time = datetime.utcnow()
@@ -302,48 +306,54 @@ async def run_ticket_workflow(input_data: TicketInput = None):
                     )
                 logger.info(f"Fetched case by ID: {input_data.case_id}")
         
-        # Run workflow with LLM flag
-        final_state = run_ticket_triage(case, use_llm=use_llm)
+        # Run complaint classification workflow
+        final_state = run_complaint_classification(case, use_llm=use_llm)
         
         # Calculate execution time
         end_time = datetime.utcnow()
         execution_ms = (end_time - start_time).total_seconds() * 1000
         
-        # Build summary with LLM analysis
+        # Build summary with classification results
+        classification = final_state.get("classification", {})
         decision = final_state.get("decision", {})
-        llm_analysis = final_state.get("llm_analysis", {})
+        
+        # Determine type label
+        if classification.get("is_product_complaint"):
+            type_label = f"📦 PRODUCT COMPLAINT ({classification.get('product_category', 'general')})"
+        elif classification.get("is_it_support"):
+            type_label = "💻 IT SUPPORT"
+        else:
+            type_label = "📋 GENERAL"
         
         summary = {
             "case_id": final_state.get("case", {}).get("Id", "N/A"),
             "case_number": final_state.get("case", {}).get("CaseNumber", "N/A"),
             "subject": final_state.get("case", {}).get("Subject", "N/A")[:50],
-            "category": final_state.get("category", "N/A"),
-            "mode": llm_analysis.get("model_used", "rule-based"),
-            "action": decision.get("action", "N/A"),
-            "escalated": decision.get("action") == "escalate",
-            "priority_changed": decision.get("priority_change"),
-            "kb_articles_suggested": len(final_state.get("kb_suggestions", [])),
-            "sap_context_found": bool(final_state.get("sap_context", {}).get("business_partner_id")),
+            "classification_type": type_label,
+            "is_product_complaint": classification.get("is_product_complaint", False),
+            "is_it_support": classification.get("is_it_support", False),
+            "product_category": classification.get("product_category", "none"),
+            "product_name": classification.get("product_name", ""),
+            "sentiment": classification.get("sentiment", "neutral"),
+            "urgency": classification.get("urgency", "medium"),
+            "confidence": classification.get("confidence", 0),
+            "email_sent": decision.get("email_sent", False),
+            "redirect_url": decision.get("redirect_url", ""),
+            "action_taken": decision.get("action", ""),
             "total_actions": len(final_state.get("actions_done", [])),
-            "llm_analysis": {
-                "confidence": llm_analysis.get("confidence", 0),
-                "urgency": llm_analysis.get("urgency", ""),
-                "sentiment": llm_analysis.get("sentiment", ""),
-                "reasoning": llm_analysis.get("reasoning", "")[:300] if llm_analysis.get("reasoning") else "",
-                "suggested_response_preview": llm_analysis.get("suggested_response", "")[:200] if llm_analysis.get("suggested_response") else ""
-            } if use_llm else None
+            "suggested_response_preview": classification.get("suggested_response", "")[:200] if classification.get("suggested_response") else ""
         }
         
         logger.info(f"Workflow completed in {execution_ms:.2f}ms")
         logger.info(f"Summary: {summary}")
         
         # Extract reasoning for top-level display
-        reasoning = llm_analysis.get("reasoning", "") if use_llm else "Rule-based categorization (no LLM reasoning)"
+        reasoning = classification.get("reasoning", "") if use_llm else "Rule-based classification (no LLM reasoning)"
         
         return WorkflowResponse(
             success=True,
-            workflow="ticket_triage",
-            mode="🤖 LLM" if use_llm and llm_analysis.get("model_used") != "rule-based" else "📊 Rule-based",
+            workflow="complaint_classification",
+            mode="🤖 LLM" if use_llm else "📊 Rule-based",
             timestamp=start_time.isoformat(),
             execution_time_ms=round(execution_ms, 2),
             reasoning=reasoning,
@@ -355,7 +365,7 @@ async def run_ticket_workflow(input_data: TicketInput = None):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Ticket workflow failed: {e}", exc_info=True)
+        logger.error(f"Ticket classification workflow failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Workflow execution failed: {str(e)}"
@@ -404,38 +414,49 @@ async def get_lead_graph_info():
 @router.get("/graphs/ticket")
 async def get_ticket_graph_info():
     """
-    Get information about the Ticket Triage graph structure.
+    Get information about the Complaint Classification graph structure.
     
     Useful for understanding the workflow nodes and edges.
     """
-    graph = build_ticket_graph()
+    graph = build_complaint_graph()
     
     return {
-        "name": "ticket_triage",
-        "description": "Customer Support Ticket Triage workflow",
+        "name": "complaint_classification",
+        "description": "Product/IT Support Complaint Classification workflow",
+        "key_feature": "ALWAYS sends email with AI analysis",
         "nodes": [
             {"name": "FetchTicket", "description": "Fetch case from Salesforce"},
-            {"name": "CategorizeTicket", "description": "Classify ticket category"},
-            {"name": "RetrieveContext", "description": "Get SAP order context"},
-            {"name": "DecideAction", "description": "Determine action based on category"},
-            {"name": "ExecuteActions", "description": "Execute Salesforce/SAP actions"}
+            {"name": "ClassifyComplaint", "description": "LLM classifies Product vs IT vs General"},
+            {"name": "DecideAction", "description": "Determine action (email/redirect)"},
+            {"name": "ExecuteActions", "description": "Send email with AI analysis, update Salesforce"}
         ],
         "edges": [
             {"from": "START", "to": "FetchTicket"},
-            {"from": "FetchTicket", "to": "CategorizeTicket"},
-            {"from": "CategorizeTicket", "to": "RetrieveContext"},
-            {"from": "RetrieveContext", "to": "DecideAction"},
+            {"from": "FetchTicket", "to": "ClassifyComplaint"},
+            {"from": "ClassifyComplaint", "to": "DecideAction"},
             {"from": "DecideAction", "to": "ExecuteActions"},
             {"from": "ExecuteActions", "to": "END"}
         ],
-        "categories": ["howto", "billing", "outage", "security", "other"],
-        "decision_rules": {
-            "howto": "Auto-reply with KB articles",
-            "billing": "Request additional information",
-            "outage": "Escalate to incident team",
-            "security": "Escalate to security team",
-            "other": "Request more information"
-        }
+        "classification_types": {
+            "product_complaint": "Hardware/software issue with Belden products",
+            "it_support": "Portal access, passwords, internal systems",
+            "general": "Requires manual review"
+        },
+        "actions": {
+            "all_types": "ALWAYS send email with full AI analysis (reasoning, sentiment, urgency)",
+            "product_complaint": "Email includes product category and suggested response",
+            "it_support": "Email includes IT portal redirect URL"
+        },
+        "email_contents": [
+            "Classification type (Product/IT/General)",
+            "AI reasoning and analysis",
+            "Customer sentiment",
+            "Urgency level",
+            "Confidence score",
+            "Suggested response",
+            "Product details (if applicable)",
+            "IT portal link (if applicable)"
+        ]
     }
 
 
