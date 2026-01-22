@@ -79,6 +79,20 @@ class LeadScoreOutput(BaseModel):
     recommended_action: str = Field(description="Suggested next action for this lead")
 
 
+class ProductComplaintOutput(BaseModel):
+    """Structured output for product complaint classification."""
+    is_product_complaint: bool = Field(description="True if this is a product-related complaint/issue")
+    is_it_support: bool = Field(description="True if this is an IT/technical support request")
+    product_category: str = Field(description="Product category: switches, cables, connectors, software, infrastructure, general, none")
+    product_name: str = Field(description="Specific product name if mentioned, or empty string")
+    confidence: float = Field(description="Confidence in the classification from 0.0 to 1.0")
+    reasoning: str = Field(description="Explanation of why this was classified this way")
+    sentiment: str = Field(description="Customer sentiment: angry, frustrated, neutral, positive")
+    urgency: str = Field(description="Urgency level: critical, high, medium, low")
+    complaint_summary: str = Field(description="Brief summary of the complaint/issue")
+    suggested_response: str = Field(description="Suggested response to the customer")
+
+
 class TicketCategoryOutput(BaseModel):
     """Structured output for ticket categorization."""
     category: str = Field(description="Category: howto, billing, outage, security, or other")
@@ -260,6 +274,72 @@ TICKET_CATEGORIZATION_USER_PROMPT = """Categorize this support ticket and draft 
 - **Business Partner**: {bp_id}
 
 Provide your analysis as JSON with: category, confidence, urgency, reasoning, sentiment, suggested_response, requires_escalation, escalation_reason"""
+
+
+# ============================================================================
+# Product Complaint Classification Prompts (NEW)
+# ============================================================================
+
+PRODUCT_COMPLAINT_SYSTEM_PROMPT = """Eres un experto en clasificación de quejas y comentarios de clientes para Belden, 
+una empresa líder en soluciones de infraestructura de red industrial.
+
+## TU MISIÓN
+Analizar cada ticket/comentario y determinar:
+1. ¿Es una queja o problema relacionado con un PRODUCTO de Belden?
+2. ¿Es un tema de IT/SOPORTE TÉCNICO general (no relacionado con productos)?
+3. ¿Qué producto específico está involucrado?
+
+## CATEGORÍAS DE PRODUCTOS BELDEN
+- **switches**: Switches industriales (Hirschmann, Lumberg), switches Ethernet
+- **cables**: Cables de red, cables industriales, fibra óptica
+- **connectors**: Conectores, terminales, paneles de parcheo
+- **software**: Software de gestión de red, firmware, aplicaciones
+- **infrastructure**: Infraestructura de red, racks, gabinetes
+- **general**: Productos Belden no especificados claramente
+
+## EJEMPLOS DE QUEJAS DE PRODUCTO
+- "El switch Hirschmann se reinicia solo" → switches
+- "Los cables no funcionan correctamente" → cables  
+- "El conector está defectuoso" → connectors
+- "El firmware tiene bugs" → software
+- "Producto llegó dañado" → Identificar qué producto
+
+## EJEMPLOS DE IT SOPORTE (NO producto)
+- "No puedo acceder al portal"
+- "Olvidé mi contraseña"
+- "Necesito ayuda para configurar mi VPN"
+- "¿Cómo instalo el software?"
+- "Problemas con mi cuenta"
+
+## FORMATO DE RESPUESTA
+Responde SIEMPRE en JSON válido con estos campos:
+- is_product_complaint: true/false
+- is_it_support: true/false
+- product_category: switches|cables|connectors|software|infrastructure|general|none
+- product_name: nombre específico o ""
+- confidence: 0.0-1.0
+- reasoning: explicación detallada
+- sentiment: angry|frustrated|neutral|positive
+- urgency: critical|high|medium|low
+- complaint_summary: resumen breve
+- suggested_response: respuesta sugerida al cliente
+
+IMPORTANTE: Si NO es queja de producto NI IT soporte, pon is_product_complaint=false, is_it_support=false, product_category="none"
+"""
+
+PRODUCT_COMPLAINT_USER_PROMPT = """Clasifica el siguiente ticket/comentario:
+
+## Información del Ticket
+- **Número de Caso**: {case_number}
+- **Asunto**: {subject}
+- **Descripción completa**: 
+{description}
+
+- **Prioridad actual**: {priority}
+- **Origen**: {origin}
+- **Fecha de creación**: {created_date}
+
+Analiza cuidadosamente y proporciona tu clasificación en formato JSON."""
 
 
 # ============================================================================
@@ -481,6 +561,110 @@ def categorize_ticket_with_llm(case: dict, sap_context: dict) -> dict:
         }
 
 
+@traceable(
+    name="📦 Product Complaint Classification LLM",
+    run_type="llm",
+    tags=["product-complaint", "classification", "gpt-4o-mini"]
+)
+def classify_product_complaint_with_llm(case: dict) -> dict:
+    """
+    Classify if a ticket is a product complaint or IT support issue.
+    
+    Args:
+        case: Salesforce Case data
+        
+    Returns:
+        ProductComplaintOutput as dictionary with:
+        - is_product_complaint: True if product-related
+        - is_it_support: True if IT support
+        - product_category: Category of product
+        - product_name: Specific product if identified
+        - etc.
+    """
+    case_number = case.get('CaseNumber', case.get('Id', 'Unknown'))
+    subject = case.get('Subject', 'No subject')
+    
+    logger.info("=" * 60)
+    logger.info(f"🤖 LLM PRODUCT CLASSIFICATION - Case #{case_number}")
+    logger.info("=" * 60)
+    logger.info(f"   Subject: {subject[:50]}...")
+    
+    try:
+        llm = get_llm(temperature=0.1, model="gpt-4o-mini")
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", PRODUCT_COMPLAINT_SYSTEM_PROMPT),
+            ("user", PRODUCT_COMPLAINT_USER_PROMPT)
+        ])
+        
+        parser = JsonOutputParser(pydantic_object=ProductComplaintOutput)
+        chain = prompt | llm | parser
+        chain = chain.with_config({"run_name": "📦 Product Complaint Chain"})
+        
+        input_data = {
+            "case_number": case_number,
+            "subject": subject,
+            "description": case.get("Description", "No description"),
+            "priority": case.get("Priority", "Unknown"),
+            "origin": case.get("Origin", "Unknown"),
+            "created_date": case.get("CreatedDate", "Unknown")
+        }
+        
+        logger.info("📤 Sending to LLM for classification...")
+        result = chain.invoke(input_data)
+        
+        # Ensure all required fields exist
+        result = {
+            "is_product_complaint": result.get("is_product_complaint", False),
+            "is_it_support": result.get("is_it_support", False),
+            "product_category": result.get("product_category", "none"),
+            "product_name": result.get("product_name", ""),
+            "confidence": result.get("confidence", 0.7),
+            "reasoning": result.get("reasoning", "Classification completed"),
+            "sentiment": result.get("sentiment", "neutral"),
+            "urgency": result.get("urgency", "medium"),
+            "complaint_summary": result.get("complaint_summary", subject),
+            "suggested_response": result.get("suggested_response", "Thank you for contacting us.")
+        }
+        
+        logger.info("=" * 60)
+        logger.info("✅ CLASSIFICATION COMPLETE")
+        logger.info("=" * 60)
+        
+        if result["is_product_complaint"]:
+            logger.info(f"   📦 PRODUCT COMPLAINT DETECTED")
+            logger.info(f"   Category: {result['product_category']}")
+            logger.info(f"   Product: {result['product_name'] or 'Not specified'}")
+        elif result["is_it_support"]:
+            logger.info(f"   💻 IT SUPPORT REQUEST DETECTED")
+        else:
+            logger.info(f"   ❓ OTHER/GENERAL INQUIRY")
+        
+        logger.info(f"   Sentiment: {result['sentiment']}")
+        logger.info(f"   Urgency: {result['urgency']}")
+        logger.info(f"   Confidence: {result['confidence']:.0%}")
+        logger.info("-" * 60)
+        logger.info(f"📋 REASONING: {result['reasoning'][:100]}...")
+        logger.info("=" * 60)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ LLM classification failed: {e}")
+        return {
+            "is_product_complaint": False,
+            "is_it_support": False,
+            "product_category": "none",
+            "product_name": "",
+            "confidence": 0.0,
+            "reasoning": f"[FALLBACK] Classification failed: {str(e)}",
+            "sentiment": "neutral",
+            "urgency": "medium",
+            "complaint_summary": subject,
+            "suggested_response": "Thank you for contacting us. A representative will review your case."
+        }
+
+
 # ============================================================================
 # Utility Functions
 # ============================================================================
@@ -490,7 +674,7 @@ def get_prompt_for_demo(prompt_type: str) -> dict:
     Get prompt text for demo/documentation purposes.
     
     Args:
-        prompt_type: "lead_scoring" or "ticket_categorization"
+        prompt_type: "lead_scoring", "ticket_categorization", or "product_complaint"
         
     Returns:
         Dictionary with system and user prompts
@@ -504,6 +688,11 @@ def get_prompt_for_demo(prompt_type: str) -> dict:
         return {
             "system": TICKET_CATEGORIZATION_SYSTEM_PROMPT,
             "user": TICKET_CATEGORIZATION_USER_PROMPT
+        }
+    elif prompt_type == "product_complaint":
+        return {
+            "system": PRODUCT_COMPLAINT_SYSTEM_PROMPT,
+            "user": PRODUCT_COMPLAINT_USER_PROMPT
         }
     else:
         return {"error": f"Unknown prompt type: {prompt_type}"}

@@ -25,6 +25,9 @@ python-dotenv>=1.0.0
 # Google Cloud (for Agent Engine deployment)
 google-cloud-aiplatform>=1.50.0
 
+# Email notifications
+resend>=0.7.0
+
 # Visual Demo UI
 streamlit>=1.30.0
 

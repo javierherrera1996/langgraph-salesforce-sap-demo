@@ -288,20 +288,117 @@ class TicketTriageAgentApp:
         return result
 
 
+class ComplaintClassificationAgentApp:
+    """
+    Complaint Classification Agent for Vertex AI Agent Engine.
+    
+    Classifies customer complaints:
+    - Product complaints → Email to product owner
+    - IT Support → Redirect to IT portal
+    """
+    
+    def __init__(
+        self,
+        project: str,
+        location: str = "us-central1",
+        use_llm: bool = True
+    ):
+        self.project = project
+        self.location = location
+        self.use_llm = use_llm
+        self._graph = None
+        
+        logger.info(f"Initializing ComplaintClassificationAgentApp for project: {project}")
+    
+    def set_up(self):
+        """Set up the agent."""
+        logger.info("Setting up Complaint Classification Agent...")
+        load_dotenv()
+        
+        from src.config import get_settings
+        settings = get_settings()
+        settings.configure_langsmith()
+        
+        from src.graphs.complaint_graph import build_complaint_graph
+        self._graph = build_complaint_graph()
+        
+        logger.info("Complaint Classification Agent set up complete!")
+    
+    def classify_complaint(
+        self,
+        case_data: Optional[dict] = None,
+        use_llm: Optional[bool] = None
+    ) -> dict:
+        """
+        Classify a complaint as Product-related or IT Support.
+        
+        Args:
+            case_data: Salesforce case data
+            use_llm: Override LLM usage
+            
+        Returns:
+            Classification results with action taken
+        """
+        if self._graph is None:
+            self.set_up()
+        
+        should_use_llm = use_llm if use_llm is not None else self.use_llm
+        
+        from src.graphs.complaint_graph import create_initial_complaint_state
+        from src.tools import salesforce
+        
+        salesforce.authenticate()
+        
+        initial_state = create_initial_complaint_state(case_data or {}, use_llm=should_use_llm)
+        
+        config = {
+            "run_name": f"📦 Complaint: {(case_data or {}).get('Subject', 'Auto')[:30]}",
+            "tags": ["complaint-classification", "vertex-ai"],
+            "metadata": {
+                "workflow": "complaint_classification",
+                "use_llm": should_use_llm,
+                "project": self.project
+            }
+        }
+        
+        final_state = self._graph.invoke(initial_state, config=config)
+        
+        classification = final_state.get("classification", {})
+        decision = final_state.get("decision", {})
+        
+        return {
+            "is_product_complaint": classification.get("is_product_complaint", False),
+            "is_it_support": classification.get("is_it_support", False),
+            "product_category": classification.get("product_category", "none"),
+            "product_name": classification.get("product_name", ""),
+            "action_taken": decision.get("action", ""),
+            "email_sent": decision.get("email_sent", False),
+            "redirect_url": decision.get("redirect_url", ""),
+            "reasoning": classification.get("reasoning", ""),
+            "sentiment": classification.get("sentiment", "neutral"),
+            "urgency": classification.get("urgency", "medium"),
+            "confidence": classification.get("confidence", 0),
+            "suggested_response": classification.get("suggested_response", ""),
+            "actions_executed": final_state.get("actions_done", [])
+        }
+
+
 class BeldenSalesAgentApp:
     """
     Combined Belden Sales Agent for Vertex AI Agent Engine.
     
-    This class combines both Lead Qualification and Ticket Triage workflows
-    into a single deployable agent, following Belden's enterprise sales workflow.
+    This class combines Lead Qualification, Ticket Triage, and Complaint Classification
+    workflows into a single deployable agent.
     
     Use Cases:
     1. Lead Qualification: Qualify Salesforce leads with SAP enrichment
     2. Ticket Triage: Categorize and route support tickets
+    3. Complaint Classification: Classify Product complaints vs IT Support
     
     Example usage after deployment:
         agent.query("qualify_lead", lead_data={...})
         agent.query("triage_ticket", case_data={...})
+        agent.query("classify_complaint", case_data={...})
     """
     
     def __init__(
@@ -324,12 +421,13 @@ class BeldenSalesAgentApp:
         
         self._lead_agent = None
         self._ticket_agent = None
+        self._complaint_agent = None
         
         logger.info(f"Initializing BeldenSalesAgentApp for project: {project}")
     
     def set_up(self):
-        """Set up both sub-agents."""
-        logger.info("Setting up Belden Sales Agent (Lead + Ticket workflows)...")
+        """Set up all sub-agents."""
+        logger.info("Setting up Belden Sales Agent (Lead + Ticket + Complaint workflows)...")
         
         load_dotenv()
         
@@ -337,7 +435,7 @@ class BeldenSalesAgentApp:
         settings = get_settings()
         settings.configure_langsmith()
         
-        # Initialize both agents
+        # Initialize all agents
         self._lead_agent = LeadQualificationAgentApp(
             project=self.project,
             location=self.location,
@@ -351,6 +449,13 @@ class BeldenSalesAgentApp:
             use_llm=self.use_llm
         )
         self._ticket_agent.set_up()
+        
+        self._complaint_agent = ComplaintClassificationAgentApp(
+            project=self.project,
+            location=self.location,
+            use_llm=self.use_llm
+        )
+        self._complaint_agent.set_up()
         
         logger.info("Belden Sales Agent set up complete!")
     
@@ -368,9 +473,10 @@ class BeldenSalesAgentApp:
             action: The action to perform:
                 - "qualify_lead": Run lead qualification workflow
                 - "triage_ticket": Run ticket triage workflow
+                - "classify_complaint": Classify product complaint vs IT support
                 - "health": Health check
             lead_data: Lead data for qualify_lead action
-            case_data: Case data for triage_ticket action
+            case_data: Case data for triage_ticket or classify_complaint action
             use_llm: Override LLM usage
             
         Returns:
@@ -387,19 +493,22 @@ class BeldenSalesAgentApp:
         elif action == "triage_ticket":
             return self._ticket_agent.triage_ticket(case_data=case_data, use_llm=use_llm)
         
+        elif action == "classify_complaint":
+            return self._complaint_agent.classify_complaint(case_data=case_data, use_llm=use_llm)
+        
         elif action == "health":
             return {
                 "status": "healthy",
                 "project": self.project,
                 "location": self.location,
-                "workflows": ["lead_qualification", "ticket_triage"],
+                "workflows": ["lead_qualification", "ticket_triage", "complaint_classification"],
                 "llm_enabled": self.use_llm
             }
         
         else:
             return {
                 "error": f"Unknown action: {action}",
-                "available_actions": ["qualify_lead", "triage_ticket", "health"]
+                "available_actions": ["qualify_lead", "triage_ticket", "classify_complaint", "health"]
             }
     
     # Convenience methods for direct invocation
@@ -418,3 +527,17 @@ class BeldenSalesAgentApp:
     ) -> dict:
         """Convenience method for ticket triage."""
         return self.query("triage_ticket", case_data=case_data, use_llm=use_llm)
+    
+    def classify_complaint(
+        self,
+        case_data: Optional[dict] = None,
+        use_llm: Optional[bool] = None
+    ) -> dict:
+        """
+        Convenience method for complaint classification.
+        
+        Classifies if a ticket is a Product complaint or IT Support request.
+        - Product complaint → Sends email to product owner
+        - IT Support → Returns redirect URL to IT portal
+        """
+        return self.query("classify_complaint", case_data=case_data, use_llm=use_llm)

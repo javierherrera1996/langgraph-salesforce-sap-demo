@@ -24,6 +24,7 @@ from src.config import get_routing_config
 from src.models.state import LeadState, create_initial_lead_state
 from src.tools import salesforce, sap, scoring
 from src.tools.llm import score_lead_with_llm, ensure_tracing_enabled
+from src.tools.email import send_high_value_lead_alert
 
 logger = logging.getLogger(__name__)
 
@@ -329,6 +330,26 @@ def execute_actions(state: LeadState) -> dict:
         result = sap.create_note(bp_id, note_text, "GENERAL")
         actions_executed.append(f"sap:create_note:{bp_id}")
         logger.info(f"Created SAP note on BP: {bp_id}")
+    
+    # 5. Send email alert for high-value leads (score >= 60%)
+    if score >= 0.60:
+        logger.info(f"📧 High-value lead detected (score: {score:.0%}) - Sending email alert...")
+        llm_analysis = state.get("llm_analysis", {})
+        reasoning = llm_analysis.get("reasoning", f"Lead scored {score:.0%}")
+        
+        email_result = send_high_value_lead_alert(
+            lead=lead,
+            score=score,
+            reasoning=reasoning,
+            routing=route
+        )
+        
+        if email_result.get("success"):
+            actions_executed.append(f"email:lead_alert:{email_result.get('to', 'unknown')}")
+            logger.info(f"📧 Email alert sent successfully!")
+        else:
+            logger.warning(f"⚠️ Failed to send email alert: {email_result.get('error', 'Unknown error')}")
+            actions_executed.append(f"email:lead_alert:failed")
     
     logger.info(f"Executed {len(actions_executed)} actions")
     
