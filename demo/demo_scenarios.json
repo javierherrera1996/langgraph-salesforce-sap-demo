@@ -1,0 +1,269 @@
+{
+  "demo_title": "Belden AI Sales Operations - POC Demo",
+  "demo_duration": "15 minutes",
+  "presenter_notes": "Mostrar el poder de AI para automatizar decisiones de ventas con explicabilidad",
+  
+  "scenarios": {
+    "lead_qualification": {
+      "title": "🎯 Lead Qualification & Routing",
+      "business_context": "Belden recibe 500+ leads diarios. El equipo de ventas necesita priorizar automáticamente.",
+      
+      "demo_leads": [
+        {
+          "name": "Lead P1 - Enterprise Decision Maker",
+          "description": "CTO de empresa Fortune 500 buscando soluciones de red industrial",
+          "expected_result": "Score ~0.85, Routing: Account Executive, Priority: P1",
+          "talking_points": [
+            "El AI detecta que es C-Level con autoridad de decisión",
+            "Reconoce la industria como target (Manufacturing/Technology)",
+            "Identifica señales de compra: Hot rating + Partner Referral",
+            "SAP enrichment: Cliente existente con historial de compras"
+          ],
+          "input": {
+            "action": "qualify_lead",
+            "lead_data": {
+              "Id": "00Q000000DEMO001",
+              "Company": "Industrial Manufacturing Corp",
+              "FirstName": "Robert",
+              "LastName": "Johnson",
+              "Title": "Chief Technology Officer",
+              "Industry": "Manufacturing",
+              "Rating": "Hot",
+              "AnnualRevenue": 50000000,
+              "NumberOfEmployees": 2500,
+              "LeadSource": "Partner Referral",
+              "Email": "rjohnson@industrialmfg.com",
+              "Phone": "+1-555-100-2000",
+              "Description": "Looking to upgrade our entire network infrastructure across 5 manufacturing plants. Need industrial-grade Ethernet switches and cables. Budget approved for Q1. Currently evaluating Belden vs competitors.",
+              "Website": "www.industrialmfg.com"
+            },
+            "use_llm": true
+          }
+        },
+        {
+          "name": "Lead P2 - Mid-Market Opportunity",
+          "description": "IT Manager evaluando opciones, empresa mediana",
+          "expected_result": "Score ~0.55, Routing: Sales Dev Rep, Priority: P2",
+          "talking_points": [
+            "Manager tiene influencia pero no autoridad final",
+            "Empresa mediana - potencial pero requiere nurturing",
+            "Fuente web indica investigación temprana",
+            "El AI recomienda SDR para calificar más"
+          ],
+          "input": {
+            "action": "qualify_lead",
+            "lead_data": {
+              "Id": "00Q000000DEMO002",
+              "Company": "Regional Distribution Co",
+              "FirstName": "Maria",
+              "LastName": "Garcia",
+              "Title": "IT Infrastructure Manager",
+              "Industry": "Logistics",
+              "Rating": "Warm",
+              "AnnualRevenue": 5000000,
+              "NumberOfEmployees": 200,
+              "LeadSource": "Website",
+              "Email": "mgarcia@regionaldist.com",
+              "Description": "Researching network solutions for our new warehouse. Need to understand Belden product line.",
+              "Website": "www.regionaldist.com"
+            },
+            "use_llm": true
+          }
+        },
+        {
+          "name": "Lead P3 - Nurture Candidate",
+          "description": "Pequeña empresa, contacto junior, bajo presupuesto",
+          "expected_result": "Score ~0.25, Routing: Nurture Campaign, Priority: P3",
+          "talking_points": [
+            "El AI identifica bajo fit: empresa pequeña, título junior",
+            "Rating Cold indica poco interés inmediato",
+            "No tiene presupuesto ahora pero puede crecer",
+            "Entra a nurture automático - no consume tiempo de ventas"
+          ],
+          "input": {
+            "action": "qualify_lead",
+            "lead_data": {
+              "Id": "00Q000000DEMO003",
+              "Company": "Small Tech Startup",
+              "FirstName": "Alex",
+              "LastName": "Chen",
+              "Title": "Junior Developer",
+              "Industry": "Technology",
+              "Rating": "Cold",
+              "AnnualRevenue": 100000,
+              "NumberOfEmployees": 8,
+              "LeadSource": "Cold Call",
+              "Email": "alex@smallstartup.io",
+              "Description": "Just looking for information about network products.",
+              "Website": ""
+            },
+            "use_llm": true
+          }
+        }
+      ]
+    },
+    
+    "ticket_triage": {
+      "title": "🎫 Customer Support Ticket Triage",
+      "business_context": "El equipo de soporte recibe tickets de todo tipo. Necesitan categorizar y priorizar automáticamente.",
+      
+      "demo_tickets": [
+        {
+          "name": "Ticket Crítico - Production Outage",
+          "description": "Cliente reporta caída total del sistema - producción detenida",
+          "expected_result": "Category: outage, Action: escalate, Priority: Critical",
+          "talking_points": [
+            "El AI detecta urgencia por keywords: 'down', 'halted', 'urgent'",
+            "Analiza sentiment: Frustración/pánico del cliente",
+            "Escala automáticamente al equipo de incidentes",
+            "Cambia prioridad a Critical",
+            "SAP context: Cliente VIP con $2M en órdenes"
+          ],
+          "input": {
+            "action": "triage_ticket",
+            "case_data": {
+              "Id": "500000000DEMO001",
+              "CaseNumber": "00099001",
+              "Subject": "🚨 URGENT: Complete network failure - Production HALTED",
+              "Description": "This is CRITICAL! All our Belden industrial switches stopped working at 6 AM this morning. Our entire production line is DOWN. We are losing $50,000 per hour! We need someone on-site IMMEDIATELY. This is affecting our biggest customer order. Please escalate to your highest priority team NOW!",
+              "Priority": "High",
+              "Status": "New",
+              "Origin": "Phone",
+              "AccountId": "001000000VIP001"
+            },
+            "use_llm": true
+          }
+        },
+        {
+          "name": "Ticket Billing - Discrepancia en Factura",
+          "description": "Cliente reporta problema con facturación",
+          "expected_result": "Category: billing, Action: request_info, Priority: Medium",
+          "talking_points": [
+            "Categorizado automáticamente como billing",
+            "Solicita información adicional antes de escalar",
+            "SAP context: Busca órdenes relacionadas",
+            "Sentiment: Confundido pero no enojado"
+          ],
+          "input": {
+            "action": "triage_ticket",
+            "case_data": {
+              "Id": "500000000DEMO002",
+              "CaseNumber": "00099002",
+              "Subject": "Invoice doesn't match our PO",
+              "Description": "Hi, I received invoice #INV-2024-5678 for $45,000 but our purchase order was only for $38,000. Can you please check? Our PO number is PO-2024-1234. We placed the order on December 15th for Belden industrial cables. Thanks.",
+              "Priority": "Medium",
+              "Status": "New",
+              "Origin": "Email",
+              "AccountId": "001000000REG001"
+            },
+            "use_llm": true
+          }
+        },
+        {
+          "name": "Ticket How-To - Pregunta Técnica Simple",
+          "description": "Cliente necesita ayuda con configuración",
+          "expected_result": "Category: howto, Action: auto_reply, KB articles suggested",
+          "talking_points": [
+            "Detectado como pregunta técnica simple",
+            "Auto-respuesta con artículos de KB relevantes",
+            "No requiere agente humano",
+            "Ahorra tiempo al equipo de soporte",
+            "Cliente recibe respuesta en segundos"
+          ],
+          "input": {
+            "action": "triage_ticket",
+            "case_data": {
+              "Id": "500000000DEMO003",
+              "CaseNumber": "00099003",
+              "Subject": "How to configure VLAN on Hirschmann switch?",
+              "Description": "Hello, I just purchased a Hirschmann RSP switch and I need to set up VLANs for our network. Where can I find the configuration guide? Also, what's the default IP address to access the web interface? Thanks!",
+              "Priority": "Low",
+              "Status": "New",
+              "Origin": "Web",
+              "AccountId": "001000000NEW001"
+            },
+            "use_llm": true
+          }
+        },
+        {
+          "name": "Ticket Security - Vulnerabilidad Reportada",
+          "description": "Cliente reporta posible problema de seguridad",
+          "expected_result": "Category: security, Action: escalate, Priority: High",
+          "talking_points": [
+            "Detectado inmediatamente como tema de seguridad",
+            "Escalado al equipo de seguridad automáticamente",
+            "Prioridad elevada a High",
+            "Sentiment: Preocupación seria"
+          ],
+          "input": {
+            "action": "triage_ticket",
+            "case_data": {
+              "Id": "500000000DEMO004",
+              "CaseNumber": "00099004",
+              "Subject": "Security concern - unauthorized access attempts",
+              "Description": "We noticed unusual login attempts on our Belden network management interface. Someone tried to access with admin credentials multiple times from an unknown IP address. We're worried about a potential security breach. Please advise on how to secure our system and if there are any known vulnerabilities we should patch.",
+              "Priority": "Medium",
+              "Status": "New",
+              "Origin": "Email",
+              "AccountId": "001000000SEC001"
+            },
+            "use_llm": true
+          }
+        }
+      ]
+    }
+  },
+  
+  "demo_flow": [
+    {
+      "step": 1,
+      "title": "Introducción - El Problema de Negocio",
+      "duration": "2 min",
+      "script": "Belden recibe más de 500 leads diarios y cientos de tickets de soporte. Actualmente, el equipo de ventas pasa el 60% de su tiempo en leads que nunca convertirán. El equipo de soporte tarda en promedio 4 horas en responder tickets simples. Hoy les mostraré cómo AI puede resolver esto."
+    },
+    {
+      "step": 2,
+      "title": "Demo Lead P1 - Enterprise CTO",
+      "duration": "2 min",
+      "script": "Imaginemos que acaba de llegar este lead. Es el CTO de una empresa de manufactura con $50M de revenue... [Ejecutar API] ... Miren cómo el AI analizó el título, la industria, el rating, y determinó que es un lead P1 que debe ir directamente a un Account Executive. Lean el REASONING - explica exactamente por qué tomó esa decisión."
+    },
+    {
+      "step": 3,
+      "title": "Demo Lead P3 - Startup pequeña",
+      "duration": "1 min",
+      "script": "Ahora veamos un lead diferente. Un developer junior de una startup pequeña... [Ejecutar API] ... El AI correctamente identificó que no es el momento de invertir tiempo de ventas. Va a nurture automático."
+    },
+    {
+      "step": 4,
+      "title": "Demo Ticket Crítico - Outage",
+      "duration": "2 min",
+      "script": "Ahora el lado de soporte. Acaba de llegar este ticket: URGENTE - Producción detenida... [Ejecutar API] ... El AI detectó la urgencia, analizó el sentiment del cliente (frustración), y escaló inmediatamente al equipo de incidentes. Sin intervención humana."
+    },
+    {
+      "step": 5,
+      "title": "Demo Ticket Simple - How-to",
+      "duration": "1 min",
+      "script": "Pero no todos los tickets necesitan un humano... [Ejecutar API] ... Pregunta técnica simple. El AI respondió automáticamente con artículos de KB relevantes. El cliente tiene su respuesta en segundos."
+    },
+    {
+      "step": 6,
+      "title": "LangSmith - Observabilidad",
+      "duration": "2 min",
+      "script": "Todo está siendo trazado en LangSmith. Podemos ver exactamente qué decisiones tomó el AI, qué datos usó, y debuggear cualquier problema. Compliance total."
+    },
+    {
+      "step": 7,
+      "title": "Arquitectura y Próximos Pasos",
+      "duration": "2 min",
+      "script": "Esto corre en Vertex AI Agent Engine, se integra con Salesforce vía API, y enriquece datos con SAP. Escalable a millones de leads. Próximos pasos: integración real con Salesforce y piloto con el equipo de ventas."
+    }
+  ],
+  
+  "key_messages": [
+    "✅ Decisiones explicables - El AI siempre dice POR QUÉ",
+    "✅ Ahorro de tiempo - 60% menos tiempo en leads fríos",
+    "✅ Respuesta instantánea - Tickets simples resueltos en segundos",
+    "✅ Escalabilidad - De 500 a 50,000 leads sin cambios",
+    "✅ Compliance - Todo trazado y auditable en LangSmith"
+  ]
+}

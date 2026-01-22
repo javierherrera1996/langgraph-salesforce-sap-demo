@@ -1,0 +1,210 @@
+{
+  "info": {
+    "name": "Belden AI Sales Agent - Demo",
+    "description": "Collection para demostrar el Belden AI Sales Agent en Vertex AI Agent Engine",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://us-central1-aiplatform.googleapis.com/v1",
+      "type": "string"
+    },
+    {
+      "key": "project_id",
+      "value": "logical-hallway-485016-r7",
+      "type": "string"
+    },
+    {
+      "key": "agent_id",
+      "value": "180545306838958080",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "YOUR_TOKEN_HERE",
+      "type": "string",
+      "description": "Get from: gcloud auth print-access-token"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"health\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "🎯 Lead P1 - Enterprise CTO (Hot)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"qualify_lead\",\n    \"lead_data\": {\n      \"Id\": \"00Q000000DEMO001\",\n      \"Company\": \"Industrial Manufacturing Corp\",\n      \"FirstName\": \"Robert\",\n      \"LastName\": \"Johnson\",\n      \"Title\": \"Chief Technology Officer\",\n      \"Industry\": \"Manufacturing\",\n      \"Rating\": \"Hot\",\n      \"AnnualRevenue\": 50000000,\n      \"NumberOfEmployees\": 2500,\n      \"LeadSource\": \"Partner Referral\",\n      \"Email\": \"rjohnson@industrialmfg.com\",\n      \"Description\": \"Looking to upgrade our entire network infrastructure across 5 manufacturing plants. Need industrial-grade Ethernet switches and cables. Budget approved for Q1.\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "🎯 Lead P2 - IT Manager (Warm)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"qualify_lead\",\n    \"lead_data\": {\n      \"Id\": \"00Q000000DEMO002\",\n      \"Company\": \"Regional Distribution Co\",\n      \"FirstName\": \"Maria\",\n      \"LastName\": \"Garcia\",\n      \"Title\": \"IT Infrastructure Manager\",\n      \"Industry\": \"Logistics\",\n      \"Rating\": \"Warm\",\n      \"AnnualRevenue\": 5000000,\n      \"NumberOfEmployees\": 200,\n      \"LeadSource\": \"Website\",\n      \"Email\": \"mgarcia@regionaldist.com\",\n      \"Description\": \"Researching network solutions for our new warehouse.\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "🎯 Lead P3 - Junior Dev (Cold)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"qualify_lead\",\n    \"lead_data\": {\n      \"Id\": \"00Q000000DEMO003\",\n      \"Company\": \"Small Tech Startup\",\n      \"FirstName\": \"Alex\",\n      \"LastName\": \"Chen\",\n      \"Title\": \"Junior Developer\",\n      \"Industry\": \"Technology\",\n      \"Rating\": \"Cold\",\n      \"AnnualRevenue\": 100000,\n      \"NumberOfEmployees\": 8,\n      \"LeadSource\": \"Cold Call\",\n      \"Email\": \"alex@smallstartup.io\",\n      \"Description\": \"Just looking for information about network products.\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "🚨 Ticket CRITICAL - Production Outage",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"triage_ticket\",\n    \"case_data\": {\n      \"Id\": \"500000000DEMO001\",\n      \"CaseNumber\": \"00099001\",\n      \"Subject\": \"🚨 URGENT: Complete network failure - Production HALTED\",\n      \"Description\": \"This is CRITICAL! All our Belden industrial switches stopped working at 6 AM this morning. Our entire production line is DOWN. We are losing $50,000 per hour! We need someone on-site IMMEDIATELY. Please escalate to your highest priority team NOW!\",\n      \"Priority\": \"High\",\n      \"Status\": \"New\",\n      \"Origin\": \"Phone\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "💰 Ticket BILLING - Invoice Issue",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"triage_ticket\",\n    \"case_data\": {\n      \"Id\": \"500000000DEMO002\",\n      \"CaseNumber\": \"00099002\",\n      \"Subject\": \"Invoice doesn't match our PO\",\n      \"Description\": \"Hi, I received invoice #INV-2024-5678 for $45,000 but our purchase order was only for $38,000. Can you please check? Our PO number is PO-2024-1234.\",\n      \"Priority\": \"Medium\",\n      \"Status\": \"New\",\n      \"Origin\": \"Email\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "❓ Ticket HOWTO - Configuration Help",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"triage_ticket\",\n    \"case_data\": {\n      \"Id\": \"500000000DEMO003\",\n      \"CaseNumber\": \"00099003\",\n      \"Subject\": \"How to configure VLAN on Hirschmann switch?\",\n      \"Description\": \"Hello, I just purchased a Hirschmann RSP switch and I need to set up VLANs for our network. Where can I find the configuration guide? Also, what's the default IP address to access the web interface?\",\n      \"Priority\": \"Low\",\n      \"Status\": \"New\",\n      \"Origin\": \"Web\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    },
+    {
+      "name": "🔒 Ticket SECURITY - Unauthorized Access",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"input\": {\n    \"action\": \"triage_ticket\",\n    \"case_data\": {\n      \"Id\": \"500000000DEMO004\",\n      \"CaseNumber\": \"00099004\",\n      \"Subject\": \"Security concern - unauthorized access attempts\",\n      \"Description\": \"We noticed unusual login attempts on our Belden network management interface. Someone tried to access with admin credentials multiple times from an unknown IP address. We're worried about a potential security breach.\",\n      \"Priority\": \"Medium\",\n      \"Status\": \"New\",\n      \"Origin\": \"Email\"\n    },\n    \"use_llm\": true\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/projects/{{project_id}}/locations/us-central1/reasoningEngines/{{agent_id}}:query",
+          "host": ["{{base_url}}"],
+          "path": ["projects", "{{project_id}}", "locations", "us-central1", "reasoningEngines", "{{agent_id}}:query"]
+        }
+      }
+    }
+  ]
+}
