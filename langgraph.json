@@ -1,0 +1,9 @@
+{
+  "graphs": {
+    "lead_qualification": "./src/graphs/lead_graph.py:build_lead_graph",
+    "ticket_triage": "./src/graphs/ticket_graph.py:build_ticket_graph"
+  },
+  "env": ".env",
+  "python_version": "3.11",
+  "dependencies": ["."]
+}

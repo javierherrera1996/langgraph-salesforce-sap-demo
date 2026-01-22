@@ -1,0 +1,29 @@
+# Requirements for Vertex AI Agent Engine deployment
+# Pin versions for reproducible builds
+
+# Core AI/ML
+langgraph>=0.2.0
+langchain>=0.2.0
+langchain-openai>=0.1.0
+langsmith>=0.1.0
+
+# Web framework (for local testing)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Data validation
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# HTTP clients
+requests>=2.31.0
+httpx>=0.26.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Google Cloud (for Agent Engine deployment)
+google-cloud-aiplatform>=1.50.0
+
+# Optional: For Vertex AI Gemini models (alternative to OpenAI)
+# langchain-google-vertexai>=1.0.0
