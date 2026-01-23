@@ -330,17 +330,17 @@ def execute_actions(state: ComplaintState) -> dict:
     
     case_id = case["Id"]
     action = decision.get("action", "")
+    recipient_email = decision.get("recipient_email", "")
     actions_executed = []
     email_sent = False
+    email_result = {"success": False, "error": "No action taken"}
     
     # ========================================================================
     # 1. SEND EMAIL TO APPROPRIATE ADVISOR BASED ON CLASSIFICATION
     # ========================================================================
-    action = decision.get("action", "")
-    recipient_email = decision.get("recipient_email", "")
-    
     logger.info(f"📧 Action: {action}")
     logger.info(f"📧 Recipient: {recipient_email}")
+    logger.info(f"📧 Classification: Product={classification.get('is_product_complaint')}, IT={classification.get('is_it_support')}")
     
     if action == "email_product_expert":
         # Send to Product Expert with specific design
