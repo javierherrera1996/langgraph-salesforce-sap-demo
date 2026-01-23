@@ -94,6 +94,43 @@ class LangSmithSettings(BaseSettings):
     )
 
 
+class ResendSettings(BaseSettings):
+    """Resend email service configuration."""
+    
+    model_config = SettingsConfigDict(env_prefix="RESEND_")
+    
+    api_key: str = Field(
+        default="",
+        description="Resend API Key (get from https://resend.com/api-keys)"
+    )
+    from_email: str = Field(
+        default="onboarding@resend.dev",
+        description="Default sender email (use onboarding@resend.dev for testing)"
+    )
+    notification_email: str = Field(
+        default="",
+        alias="NOTIFICATION_EMAIL",
+        description="Email address to receive notifications (leads, complaints)"
+    )
+    it_support_url: str = Field(
+        default="https://support.belden.com/it",
+        alias="IT_SUPPORT_URL",
+        description="IT Support portal URL for redirects"
+    )
+    
+    @property
+    def is_configured(self) -> bool:
+        """Check if Resend is properly configured."""
+        return bool(self.api_key and self.api_key != "re_YOUR_RESEND_API_KEY")
+    
+    def get_product_owner_email(self, product_category: str) -> str:
+        """Get product owner email for a given category."""
+        # Try to get from environment variable first
+        env_key = f"PRODUCT_OWNER_{product_category.upper()}"
+        owner_email = os.getenv(env_key, "")
+        return owner_email or self.notification_email or self.from_email
+
+
 class RoutingSettings(BaseSettings):
     """Default routing configuration for lead/ticket assignment."""
     
@@ -131,6 +168,7 @@ class AppSettings(BaseSettings):
     salesforce: SalesforceSettings = Field(default_factory=SalesforceSettings)
     sap: SAPSettings = Field(default_factory=SAPSettings)
     langsmith: LangSmithSettings = Field(default_factory=LangSmithSettings)
+    resend: ResendSettings = Field(default_factory=ResendSettings)
     routing: RoutingSettings = Field(default_factory=RoutingSettings)
     
     def configure_langsmith(self) -> None:
@@ -166,3 +204,8 @@ def get_sap_config() -> SAPSettings:
 def get_routing_config() -> RoutingSettings:
     """Get routing configuration."""
     return get_settings().routing
+
+
+def get_resend_config() -> ResendSettings:
+    """Get Resend email configuration."""
+    return get_settings().resend

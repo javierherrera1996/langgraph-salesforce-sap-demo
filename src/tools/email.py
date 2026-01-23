@@ -5,46 +5,24 @@ This module handles email notifications for:
 - High-value lead alerts (score >= 60%)
 - Product complaint notifications
 - IT support redirections
+- AI analysis emails for all tickets
 
 Resend Setup:
 1. Create account at https://resend.com
 2. Get API key from dashboard
 3. Verify your domain or use onboarding@resend.dev for testing
 4. Set RESEND_API_KEY in environment
+
+See docs/RESEND_SETUP.md for detailed setup instructions.
 """
 
-import os
 import logging
 from typing import Optional
 from datetime import datetime
 
+from src.config import get_resend_config
+
 logger = logging.getLogger(__name__)
-
-# Resend configuration
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-DEFAULT_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")
-NOTIFICATION_EMAIL = os.getenv("NOTIFICATION_EMAIL", "")  # Email para recibir notificaciones
-
-# Product owners mapping (producto -> email del encargado)
-PRODUCT_OWNERS = {
-    "switches": os.getenv("PRODUCT_OWNER_SWITCHES", NOTIFICATION_EMAIL),
-    "cables": os.getenv("PRODUCT_OWNER_CABLES", NOTIFICATION_EMAIL),
-    "connectors": os.getenv("PRODUCT_OWNER_CONNECTORS", NOTIFICATION_EMAIL),
-    "software": os.getenv("PRODUCT_OWNER_SOFTWARE", NOTIFICATION_EMAIL),
-    "infrastructure": os.getenv("PRODUCT_OWNER_INFRASTRUCTURE", NOTIFICATION_EMAIL),
-    "general": os.getenv("PRODUCT_OWNER_GENERAL", NOTIFICATION_EMAIL),
-}
-
-# IT Support page URL
-IT_SUPPORT_URL = os.getenv("IT_SUPPORT_URL", "https://support.belden.com/it")
-
-
-def _check_resend_configured() -> bool:
-    """Check if Resend is properly configured."""
-    if not RESEND_API_KEY:
-        logger.warning("⚠️ RESEND_API_KEY not configured - emails will be simulated")
-        return False
-    return True
 
 
 def send_email(
@@ -65,8 +43,11 @@ def send_email(
     Returns:
         dict with status and message id
     """
-    if not _check_resend_configured():
+    config = get_resend_config()
+    
+    if not config.is_configured:
         # Simulate email for demo
+        logger.warning("⚠️ Resend not configured - simulating email")
         logger.info(f"📧 [SIMULATED] Email to: {to}")
         logger.info(f"   Subject: {subject}")
         logger.info(f"   Content preview: {html_content[:100]}...")
@@ -74,23 +55,25 @@ def send_email(
             "success": True,
             "simulated": True,
             "to": to,
-            "subject": subject
+            "subject": subject,
+            "message": "Email simulated (Resend not configured)"
         }
     
     try:
-        import resend
-        resend.api_key = RESEND_API_KEY
+        from resend import Resend
+        
+        resend_client = Resend(api_key=config.api_key)
         
         params = {
-            "from": from_email or DEFAULT_FROM_EMAIL,
+            "from": from_email or config.from_email,
             "to": [to],
             "subject": subject,
             "html": html_content
         }
         
-        response = resend.Emails.send(params)
+        response = resend_client.emails.send(params)
         
-        logger.info(f"📧 Email sent successfully to: {to}")
+        logger.info(f"✅ Email sent successfully to: {to}")
         logger.info(f"   Message ID: {response.get('id', 'N/A')}")
         
         return {
@@ -98,11 +81,20 @@ def send_email(
             "simulated": False,
             "message_id": response.get("id"),
             "to": to,
-            "subject": subject
+            "subject": subject,
+            "from": from_email or config.from_email
         }
         
+    except ImportError:
+        logger.error("❌ Resend package not installed. Run: pip install resend")
+        return {
+            "success": False,
+            "error": "Resend package not installed",
+            "to": to,
+            "subject": subject
+        }
     except Exception as e:
-        logger.error(f"❌ Failed to send email: {e}")
+        logger.error(f"❌ Failed to send email to {to}: {e}")
         return {
             "success": False,
             "error": str(e),
@@ -126,9 +118,10 @@ def send_high_value_lead_alert(
         score: Qualification score (0.0 - 1.0)
         reasoning: AI reasoning for the score
         routing: Routing decision (owner_type, priority)
-        recipient_email: Override recipient (defaults to NOTIFICATION_EMAIL)
+        recipient_email: Override recipient (defaults to notification_email from config)
     """
-    to_email = recipient_email or NOTIFICATION_EMAIL
+    config = get_resend_config()
+    to_email = recipient_email or config.notification_email or config.from_email
     
     if not to_email:
         logger.warning("⚠️ No notification email configured for lead alerts")
@@ -247,8 +240,10 @@ def send_product_complaint_alert(
         analysis: AI analysis results
         recipient_email: Override recipient (defaults to product owner)
     """
+    config = get_resend_config()
+    
     # Get product owner email
-    to_email = recipient_email or PRODUCT_OWNERS.get(product_category.lower(), NOTIFICATION_EMAIL)
+    to_email = recipient_email or config.get_product_owner_email(product_category.lower())
     
     if not to_email:
         logger.warning(f"⚠️ No email configured for product: {product_category}")
@@ -349,10 +344,12 @@ def get_it_support_redirect() -> dict:
     Returns:
         dict with redirect URL and message
     """
+    config = get_resend_config()
+    it_url = config.it_support_url
     return {
         "action": "redirect_to_it",
-        "url": IT_SUPPORT_URL,
-        "message": f"Este ticket ha sido identificado como un tema de IT/Soporte técnico. Por favor visite: {IT_SUPPORT_URL}",
+        "url": it_url,
+        "message": f"Este ticket ha sido identificado como un tema de IT/Soporte técnico. Por favor visite: {it_url}",
         "instructions": [
             "1. Visite el portal de IT Support",
             "2. Inicie sesión con sus credenciales corporativas",
@@ -373,9 +370,10 @@ def send_ticket_analysis_email(
     Args:
         ticket: Ticket/case data
         classification: AI classification results
-        recipient_email: Override recipient (defaults to NOTIFICATION_EMAIL)
+        recipient_email: Override recipient (defaults to notification_email from config)
     """
-    to_email = recipient_email or NOTIFICATION_EMAIL
+    config = get_resend_config()
+    to_email = recipient_email or config.notification_email or config.from_email
     
     if not to_email:
         logger.warning("⚠️ No notification email configured")
@@ -388,6 +386,9 @@ def send_ticket_analysis_email(
     urgency = classification.get("urgency", "medium")
     product_category = classification.get("product_category", "none")
     
+    # Get IT support URL from config
+    it_url = config.it_support_url
+    
     # Type configuration
     if is_product:
         type_emoji = "📦"
@@ -398,7 +399,7 @@ def send_ticket_analysis_email(
         type_emoji = "💻"
         type_label = "SOLICITUD IT SOPORTE"
         type_color = "#3B82F6"  # Blue
-        type_detail = f"Redirect: {IT_SUPPORT_URL}"
+        type_detail = f"Redirect: {it_url}"
     else:
         type_emoji = "📋"
         type_label = "CONSULTA GENERAL"
@@ -535,7 +536,7 @@ def send_ticket_analysis_email(
                 <div class="section" style="border-left-color: #3B82F6; background: #EFF6FF;">
                     <div class="section-title">💻 Redirección a IT Support</div>
                     <p>Este ticket ha sido clasificado como solicitud de IT/Soporte técnico.</p>
-                    <p><strong>Portal:</strong> <a href="{IT_SUPPORT_URL}">{IT_SUPPORT_URL}</a></p>
+                    <p><strong>Portal:</strong> <a href="{it_url}">{it_url}</a></p>
                 </div>
                 ''' if is_it else ''}
             </div>
