@@ -60,9 +60,10 @@ def send_email(
         }
     
     try:
-        from resend import Resend
+        import resend
         
-        resend_client = Resend(api_key=config.api_key)
+        # Set API key
+        resend.api_key = config.api_key
         
         params = {
             "from": from_email or config.from_email,
@@ -71,7 +72,7 @@ def send_email(
             "html": html_content
         }
         
-        response = resend_client.emails.send(params)
+        response = resend.Emails.send(params)
         
         logger.info(f"✅ Email sent successfully to: {to}")
         logger.info(f"   Message ID: {response.get('id', 'N/A')}")

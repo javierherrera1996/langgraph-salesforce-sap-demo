@@ -97,14 +97,17 @@ class LangSmithSettings(BaseSettings):
 class ResendSettings(BaseSettings):
     """Resend email service configuration."""
     
-    model_config = SettingsConfigDict(env_prefix="RESEND_")
+    # No prefix - use explicit aliases for environment variables
+    model_config = SettingsConfigDict()
     
     api_key: str = Field(
         default="",
+        alias="RESEND_API_KEY",
         description="Resend API Key (get from https://resend.com/api-keys)"
     )
     from_email: str = Field(
         default="onboarding@resend.dev",
+        alias="RESEND_FROM_EMAIL",
         description="Default sender email (use onboarding@resend.dev for testing)"
     )
     notification_email: str = Field(
