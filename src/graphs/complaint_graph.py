@@ -339,28 +339,33 @@ def execute_actions(state: ComplaintState) -> dict:
     action = decision.get("action", "")
     recipient_email = decision.get("recipient_email", "")
     
+    logger.info(f"📧 Action: {action}")
+    logger.info(f"📧 Recipient: {recipient_email}")
+    
     if action == "email_product_expert":
-        # Send to Product Expert
-        logger.info(f"📧 Sending email to Product Expert: {recipient_email}")
+        # Send to Product Expert with specific design
+        logger.info(f"📧 Sending PRODUCT COMPLAINT email to Product Expert: {recipient_email}")
         from src.tools.email import send_product_expert_email
         email_result = send_product_expert_email(
             ticket=case,
-            classification=classification
+            classification=classification,
+            recipient_email=recipient_email  # Pass recipient explicitly
         )
         
     elif action == "email_services_agent":
-        # Send to Services Agent
-        logger.info(f"📧 Sending email to Services Agent: {recipient_email}")
+        # Send to Services Agent with IT/Service design
+        logger.info(f"📧 Sending SERVICES/IT email to Services Agent: {recipient_email}")
         from src.tools.email import send_services_agent_email
         email_result = send_services_agent_email(
             ticket=case,
             classification=classification,
-            redirect_url=decision.get("redirect_url", "")
+            redirect_url=decision.get("redirect_url", ""),
+            recipient_email=recipient_email  # Pass recipient explicitly
         )
         
     else:
         # General handling - send to notification email
-        logger.info(f"📧 Sending email for general inquiry")
+        logger.info(f"📧 Sending email for general inquiry to: {recipient_email}")
         from src.tools.email import send_ticket_analysis_email
         email_result = send_ticket_analysis_email(
             ticket=case,
