@@ -69,21 +69,24 @@ def get_env_vars_from_file() -> dict:
         "ROUTING_NURTURE_OWNER_ID",
         "ROUTING_ESCALATION_OWNER_ID",
         
-        # Resend Email
+        # Resend Email (REQUIRED for email notifications)
         "RESEND_API_KEY",
         "RESEND_FROM_EMAIL",
-        "NOTIFICATION_EMAIL",
         
-        # Product Owners
+        # Email Recipients (REQUIRED)
+        "SALES_AGENT_EMAIL",
+        "PRODUCT_EXPERT_EMAIL",
+        "SERVICES_AGENT_EMAIL",
+        "NOTIFICATION_EMAIL",
+        "IT_SUPPORT_URL",
+        
+        # Product Owners (Optional - for specific product routing)
         "PRODUCT_OWNER_SWITCHES",
         "PRODUCT_OWNER_CABLES",
         "PRODUCT_OWNER_CONNECTORS",
         "PRODUCT_OWNER_SOFTWARE",
         "PRODUCT_OWNER_INFRASTRUCTURE",
         "PRODUCT_OWNER_GENERAL",
-        
-        # IT Support
-        "IT_SUPPORT_URL",
     ]
     
     env_vars = {}

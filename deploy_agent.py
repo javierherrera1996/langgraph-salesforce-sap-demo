@@ -77,17 +77,29 @@ def get_agent_env_vars() -> dict:
         
         # Keys to include in the deployed agent
         required_keys = [
-            # OpenAI / LLM
+            # OpenAI / LLM (REQUIRED)
             "OPENAI_API_KEY",
             
-            # LangSmith
+            # LangSmith (RECOMMENDED)
             "LANGSMITH_API_KEY",
             "LANGCHAIN_TRACING_V2",
             "LANGCHAIN_PROJECT",
             "LANGCHAIN_ENDPOINT",
             
-            # Salesforce
+            # Resend Email (REQUIRED for email notifications)
+            "RESEND_API_KEY",
+            "RESEND_FROM_EMAIL",
+            
+            # Email Recipients (REQUIRED)
+            "SALES_AGENT_EMAIL",
+            "PRODUCT_EXPERT_EMAIL",
+            "SERVICES_AGENT_EMAIL",
+            "NOTIFICATION_EMAIL",
+            "IT_SUPPORT_URL",
+            
+            # Salesforce (Optional - for real integration)
             "SALESFORCE_MODE",
+            "SALESFORCE_INSTANCE_URL",
             "SALESFORCE_CLIENT_ID",
             "SALESFORCE_CLIENT_SECRET",
             "SALESFORCE_USERNAME",
@@ -96,7 +108,7 @@ def get_agent_env_vars() -> dict:
             "SALESFORCE_LOGIN_URL",
             "SALESFORCE_API_VERSION",
             
-            # SAP
+            # SAP (Optional - for real integration)
             "SAP_MODE",
             "SAP_BASE_URL",
             "SAP_API_KEY",
@@ -104,11 +116,19 @@ def get_agent_env_vars() -> dict:
             "SAP_PASSWORD",
             "SAP_CLIENT",
             
-            # Routing
+            # Routing Configuration (Optional)
             "ROUTING_AE_OWNER_ID",
             "ROUTING_SDR_OWNER_ID",
             "ROUTING_NURTURE_OWNER_ID",
             "ROUTING_ESCALATION_OWNER_ID",
+            
+            # Product Owner Emails (Optional - for specific product routing)
+            "PRODUCT_OWNER_SWITCHES",
+            "PRODUCT_OWNER_CABLES",
+            "PRODUCT_OWNER_CONNECTORS",
+            "PRODUCT_OWNER_SOFTWARE",
+            "PRODUCT_OWNER_INFRASTRUCTURE",
+            "PRODUCT_OWNER_GENERAL",
         ]
         
         for key in required_keys:
@@ -119,10 +139,19 @@ def get_agent_env_vars() -> dict:
         logger.info(f"Environment variables loaded: {list(env_vars.keys())}")
     else:
         logger.warning(".env file not found. Using system environment variables.")
-        # Fallback to system environment
-        for key in ["OPENAI_API_KEY", "LANGSMITH_API_KEY"]:
-            if os.getenv(key):
-                env_vars[key] = os.getenv(key)
+        # Fallback to critical system environment variables
+        critical_keys = [
+            "OPENAI_API_KEY",
+            "RESEND_API_KEY",
+            "SALES_AGENT_EMAIL",
+            "PRODUCT_EXPERT_EMAIL",
+            "SERVICES_AGENT_EMAIL",
+            "NOTIFICATION_EMAIL"
+        ]
+        for key in critical_keys:
+            value = os.getenv(key)
+            if value:
+                env_vars[key] = value
     
     return env_vars
 
@@ -143,6 +172,16 @@ def validate_config():
     
     if not os.getenv("OPENAI_API_KEY"):
         errors.append("OPENAI_API_KEY is not set (required for LLM)")
+    
+    # Warn about missing email configuration (not blocking, but recommended)
+    if not os.getenv("RESEND_API_KEY"):
+        logger.warning("⚠️  RESEND_API_KEY is not set - email notifications will not work")
+    if not os.getenv("SALES_AGENT_EMAIL"):
+        logger.warning("⚠️  SALES_AGENT_EMAIL is not set - lead emails will not be sent")
+    if not os.getenv("PRODUCT_EXPERT_EMAIL"):
+        logger.warning("⚠️  PRODUCT_EXPERT_EMAIL is not set - product complaint emails will not be sent")
+    if not os.getenv("SERVICES_AGENT_EMAIL"):
+        logger.warning("⚠️  SERVICES_AGENT_EMAIL is not set - IT support emails will not be sent")
     
     if errors:
         logger.error("Configuration validation failed:")
