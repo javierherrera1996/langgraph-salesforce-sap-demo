@@ -374,13 +374,28 @@ def execute_actions(state: ComplaintState) -> dict:
             recipient_email=recipient_email
         )
     
-    if email_result.get("success") or email_result.get("id"):
+    # Log email result details
+    logger.info(f"📧 Email result: {email_result}")
+    logger.info(f"   Success: {email_result.get('success', False)}")
+    logger.info(f"   Message ID: {email_result.get('message_id', 'N/A')}")
+    logger.info(f"   Simulated: {email_result.get('simulated', False)}")
+    
+    if email_result.get("success") or email_result.get("id") or email_result.get("message_id"):
         email_sent = True
         actions_executed.append(f"email:{action}:{recipient_email}")
         logger.info(f"✅ Email sent successfully to {recipient_email}!")
+        if email_result.get("simulated"):
+            logger.warning(f"   ⚠️ Note: Email was simulated (Resend not configured)")
     else:
         actions_executed.append(f"email:{action}:failed")
-        logger.warning(f"⚠️ Failed to send email: {email_result.get('error')}")
+        error_msg = email_result.get('error', 'Unknown error')
+        error_name = email_result.get('error_name', 'N/A')
+        status_code = email_result.get('status_code', 'N/A')
+        logger.error(f"⚠️ Failed to send email to {recipient_email}")
+        logger.error(f"   Error: {error_msg}")
+        logger.error(f"   Error Name: {error_name}")
+        logger.error(f"   Status Code: {status_code}")
+        logger.error(f"   Full result: {email_result}")
     
     # ========================================================================
     # 2. UPDATE SALESFORCE CASE WITH AI COMMENT

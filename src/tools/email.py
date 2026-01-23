@@ -45,9 +45,16 @@ def send_email(
     """
     config = get_resend_config()
     
+    # Log configuration status
+    logger.info(f"📧 Email send attempt - Config check:")
+    logger.info(f"   API Key configured: {bool(config.api_key and config.api_key != 're_YOUR_RESEND_API_KEY')}")
+    logger.info(f"   From email: {config.from_email}")
+    logger.info(f"   To email: {to}")
+    
     if not config.is_configured:
         # Simulate email for demo
         logger.warning("⚠️ Resend not configured - simulating email")
+        logger.warning(f"   API Key: {config.api_key[:20] if config.api_key else 'NOT SET'}...")
         logger.info(f"📧 [SIMULATED] Email to: {to}")
         logger.info(f"   Subject: {subject}")
         logger.info(f"   Content preview: {html_content[:100]}...")
