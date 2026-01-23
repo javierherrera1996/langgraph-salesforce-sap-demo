@@ -28,8 +28,7 @@ from src.tools.llm import classify_product_complaint_with_llm, ensure_tracing_en
 from src.tools.email import (
     send_product_complaint_alert,
     send_ticket_analysis_email,
-    get_it_support_redirect,
-    NOTIFICATION_EMAIL
+    get_it_support_redirect
 )
 
 logger = logging.getLogger(__name__)
