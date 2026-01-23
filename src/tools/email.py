@@ -76,7 +76,26 @@ def send_email(
             "html": html_content
         }
         
-        response = requests.post(api_url, json=payload, headers=headers)
+        # Log request details for debugging
+        logger.info(f"📧 Sending email via Resend API")
+        logger.info(f"   URL: {api_url}")
+        logger.info(f"   Method: POST")
+        logger.info(f"   From: {from_email or config.from_email}")
+        logger.info(f"   To: {to}")
+        logger.info(f"   Subject: {subject}")
+        
+        # Make POST request explicitly
+        response = requests.post(
+            api_url,
+            json=payload,
+            headers=headers,
+            timeout=30,
+            allow_redirects=False  # Prevent redirects that might change method
+        )
+        
+        # Log response details
+        logger.info(f"   Response Status: {response.status_code}")
+        logger.info(f"   Response Method: {response.request.method if hasattr(response, 'request') else 'N/A'}")
         
         if response.status_code == 200:
             result = response.json()
@@ -93,14 +112,30 @@ def send_email(
                 "from": from_email or config.from_email
             }
         else:
-            error_data = response.json() if response.content else {}
+            # Try to parse error response
+            try:
+                error_data = response.json() if response.content else {}
+            except:
+                error_data = {"raw_response": response.text}
+            
             error_msg = error_data.get("message", f"HTTP {response.status_code}")
-            logger.error(f"❌ Failed to send email to {to}: {error_msg}")
-            logger.error(f"   Response: {response.text}")
+            error_name = error_data.get("name", "unknown_error")
+            
+            logger.error(f"❌ Failed to send email to {to}")
+            logger.error(f"   Status Code: {response.status_code}")
+            logger.error(f"   Error Name: {error_name}")
+            logger.error(f"   Error Message: {error_msg}")
+            logger.error(f"   Full Response: {response.text}")
+            logger.error(f"   Request Method Used: {response.request.method if hasattr(response, 'request') else 'N/A'}")
+            
+            # Special handling for restricted API key
+            if error_name == "restricted_api_key":
+                logger.error("   ⚠️ API key is restricted. Create a new one at https://resend.com/api-keys")
             
             return {
                 "success": False,
                 "error": error_msg,
+                "error_name": error_name,
                 "error_details": error_data,
                 "status_code": response.status_code,
                 "to": to,
@@ -115,9 +150,18 @@ def send_email(
             "to": to,
             "subject": subject
         }
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Network error sending email to {to}: {e}")
+        logger.exception("Full traceback:")
+        return {
+            "success": False,
+            "error": f"Network error: {str(e)}",
+            "to": to,
+            "subject": subject
+        }
     except Exception as e:
-        logger.error(f"❌ Failed to send email to {to}: {e}")
-        logger.exception("Full error traceback:")
+        logger.error(f"❌ Unexpected error sending email to {to}: {e}")
+        logger.exception("Full traceback:")
         return {
             "success": False,
             "error": str(e),
