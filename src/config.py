@@ -115,6 +115,21 @@ class ResendSettings(BaseSettings):
         alias="NOTIFICATION_EMAIL",
         description="Email address to receive notifications (leads, complaints)"
     )
+    sales_agent_email: str = Field(
+        default="",
+        alias="SALES_AGENT_EMAIL",
+        description="Email address for sales agents (receives high-value lead alerts)"
+    )
+    product_expert_email: str = Field(
+        default="",
+        alias="PRODUCT_EXPERT_EMAIL",
+        description="Email address for product experts (receives product-related complaints)"
+    )
+    services_agent_email: str = Field(
+        default="",
+        alias="SERVICES_AGENT_EMAIL",
+        description="Email address for services/IT agents (receives page/service-related tickets)"
+    )
     it_support_url: str = Field(
         default="https://support.belden.com/it",
         alias="IT_SUPPORT_URL",

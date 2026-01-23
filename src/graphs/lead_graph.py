@@ -331,25 +331,36 @@ def execute_actions(state: LeadState) -> dict:
         actions_executed.append(f"sap:create_note:{bp_id}")
         logger.info(f"Created SAP note on BP: {bp_id}")
     
-    # 5. Send email alert for high-value leads (score >= 60%)
+    # 5. Send email alert to sales agent for high-value leads (score >= 60%)
     if score >= 0.60:
-        logger.info(f"📧 High-value lead detected (score: {score:.0%}) - Sending email alert...")
+        logger.info(f"📧 High-value lead detected (score: {score:.0%}) - Sending email to sales agent...")
         llm_analysis = state.get("llm_analysis", {})
         reasoning = llm_analysis.get("reasoning", f"Lead scored {score:.0%}")
         
-        email_result = send_high_value_lead_alert(
-            lead=lead,
-            score=score,
-            reasoning=reasoning,
-            routing=route
-        )
+        # Get sales agent email from config
+        from src.config import get_resend_config
+        resend_config = get_resend_config()
+        sales_agent_email = resend_config.sales_agent_email or resend_config.notification_email
         
-        if email_result.get("success"):
-            actions_executed.append(f"email:lead_alert:{email_result.get('to', 'unknown')}")
-            logger.info(f"📧 Email alert sent successfully!")
+        if not sales_agent_email:
+            logger.warning("⚠️ SALES_AGENT_EMAIL not configured - skipping email")
+            actions_executed.append("email:lead_alert:skipped_no_recipient")
         else:
-            logger.warning(f"⚠️ Failed to send email alert: {email_result.get('error', 'Unknown error')}")
-            actions_executed.append(f"email:lead_alert:failed")
+            email_result = send_high_value_lead_alert(
+                lead=lead,
+                score=score,
+                reasoning=reasoning,
+                routing=route,
+                enriched=enriched,
+                recipient_email=sales_agent_email
+            )
+            
+            if email_result.get("success"):
+                actions_executed.append(f"email:lead_alert_sales_agent:{sales_agent_email}")
+                logger.info(f"✅ Email sent to sales agent: {sales_agent_email}")
+            else:
+                logger.warning(f"⚠️ Failed to send email alert: {email_result.get('error', 'Unknown error')}")
+                actions_executed.append(f"email:lead_alert:failed")
     
     logger.info(f"Executed {len(actions_executed)} actions")
     

@@ -109,6 +109,7 @@ def send_high_value_lead_alert(
     score: float,
     reasoning: str,
     routing: dict,
+    enriched: Optional[dict] = None,
     recipient_email: Optional[str] = None
 ) -> dict:
     """
@@ -198,17 +199,57 @@ def send_high_value_lead_alert(
                 <div class="section">
                     <div class="label">Routing Decision</div>
                     <div class="value">Assigned to: <strong>{routing.get('owner_type', 'N/A')}</strong> ({routing.get('priority', 'N/A')})</div>
+                    <div class="value" style="margin-top: 10px; font-size: 14px; color: #6B7280;">{routing.get('reason', 'N/A')[:200]}</div>
+                </div>
+                
+                {f'''
+                <div class="section" style="border-left-color: #10B981;">
+                    <div class="label">📊 SAP Business Context</div>
+                    <table style="width: 100%; margin-top: 10px;">
+                        <tr><td class="label">Business Partner ID</td><td class="value">{enriched.get('business_partner_id', 'N/A')}</td></tr>
+                        <tr><td class="label">Total Orders</td><td class="value">{enriched.get('total_orders', 0)}</td></tr>
+                        <tr><td class="label">Total Revenue</td><td class="value">${enriched.get('total_revenue', 0):,.2f}</td></tr>
+                        <tr><td class="label">Credit Rating</td><td class="value">{enriched.get('credit_rating', 'N/A')}</td></tr>
+                        <tr><td class="label">Last Order Date</td><td class="value">{enriched.get('last_order_date', 'N/A')}</td></tr>
+                    </table>
+                </div>
+                ''' if enriched and enriched.get('business_partner_id') else ''}
+                
+                <div class="section">
+                    <div class="label">💼 Opportunity Summary</div>
+                    <div style="background: #EFF6FF; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <p style="margin: 0 0 10px 0;"><strong>Company:</strong> {lead.get('Company', 'N/A')}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Contact:</strong> {lead.get('FirstName', '')} {lead.get('LastName', '')} ({lead.get('Title', 'N/A')})</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Potential Value:</strong> ${lead.get('AnnualRevenue', 0):,.0f} annual revenue | {lead.get('NumberOfEmployees', 'N/A')} employees</p>
+                        <p style="margin: 0 0 10px 0;"><strong>Industry:</strong> {lead.get('Industry', 'N/A')} | <strong>Rating:</strong> {lead.get('Rating', 'N/A')}</p>
+                        <p style="margin: 0;"><strong>Lead Source:</strong> {lead.get('LeadSource', 'N/A')}</p>
+                    </div>
                 </div>
                 
                 <div class="reasoning">
-                    <div class="label">🤖 AI Reasoning</div>
-                    <div style="white-space: pre-wrap; font-size: 14px;">{reasoning}</div>
+                    <div class="label">🤖 AI Analysis & Reasoning</div>
+                    <div style="white-space: pre-wrap; font-size: 14px; margin-top: 10px;">{reasoning}</div>
                 </div>
                 
-                {f'<div class="section"><div class="label">Description</div><div class="value">{lead.get("Description", "N/A")}</div></div>' if lead.get("Description") else ''}
+                {f'''
+                <div class="section">
+                    <div class="label">📝 Lead Description</div>
+                    <div class="value" style="white-space: pre-wrap; font-size: 14px;">{lead.get("Description", "N/A")}</div>
+                </div>
+                ''' if lead.get("Description") else ''}
+                
+                <div class="section" style="background: #FEF3C7; border-left-color: #F59E0B;">
+                    <div class="label">🎯 Next Steps</div>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Review lead details in Salesforce</li>
+                        <li>Contact lead within 24 hours</li>
+                        <li>Follow up based on AI recommendations</li>
+                        <li>Update opportunity status after contact</li>
+                    </ul>
+                </div>
                 
                 <div style="text-align: center; margin-top: 20px;">
-                    <a href="#" class="cta">View in Salesforce →</a>
+                    <a href="https://your-salesforce-instance.com/{lead.get('Id', '')}" class="cta" style="text-decoration: none;">View Lead in Salesforce →</a>
                 </div>
             </div>
             
@@ -545,6 +586,263 @@ def send_ticket_analysis_email(
             <div class="footer">
                 <p>🤖 Análisis generado por <strong>Belden AI Sales Agent</strong></p>
                 <p>Powered by LangGraph + GPT-4o-mini + Vertex AI Agent Engine</p>
+                <p style="color: #9CA3AF; font-size: 11px;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return send_email(to_email, subject, html_content)
+
+
+def send_product_expert_email(
+    ticket: dict,
+    classification: dict,
+    recipient_email: Optional[str] = None
+) -> dict:
+    """
+    Send email to Product Expert for product-related complaints.
+    
+    Args:
+        ticket: Ticket/case data
+        classification: AI classification results
+        recipient_email: Override recipient (defaults to product_expert_email from config)
+    """
+    config = get_resend_config()
+    to_email = recipient_email or config.product_expert_email or config.notification_email
+    
+    if not to_email:
+        logger.warning("⚠️ No product expert email configured")
+        return {"success": False, "error": "No recipient email configured"}
+    
+    product_category = classification.get("product_category", "general")
+    product_name = classification.get("product_name", "")
+    sentiment = classification.get("sentiment", "neutral")
+    urgency = classification.get("urgency", "medium")
+    
+    # Urgency colors
+    urgency_colors = {
+        "critical": "#DC2626",
+        "high": "#F59E0B",
+        "medium": "#3B82F6",
+        "low": "#10B981"
+    }
+    urgency_color = urgency_colors.get(urgency, "#6B7280")
+    
+    subject = f"📦 Queja de Producto: {product_name or product_category.upper()} - {ticket.get('Subject', 'Sin asunto')[:50]}"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+            .container {{ max-width: 650px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #EF4444, #B91C1C); color: white; padding: 25px; border-radius: 12px 12px 0 0; }}
+            .header h1 {{ margin: 0; font-size: 24px; }}
+            .content {{ background: #F8FAFC; padding: 25px; }}
+            .section {{ background: white; padding: 20px; margin: 15px 0; border-radius: 10px; border-left: 4px solid #EF4444; }}
+            .section-title {{ font-weight: bold; color: #1E3A5F; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; }}
+            .product-highlight {{ background: #FEE2E2; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #EF4444; text-align: center; }}
+            .product-name {{ font-size: 28px; font-weight: bold; color: #B91C1C; margin: 10px 0; }}
+            .urgency-badge {{ display: inline-block; background: {urgency_color}; color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; }}
+            .reasoning-box {{ background: #FEF3C7; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #F59E0B; }}
+            .response-box {{ background: #D1FAE5; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #10B981; }}
+            .footer {{ text-align: center; padding: 20px; color: #6B7280; font-size: 12px; border-top: 1px solid #E5E7EB; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📦 Queja de Producto - Requiere Atención</h1>
+                <p style="margin: 8px 0 0 0; opacity: 0.9;">Asesor Experto en Producto</p>
+            </div>
+            
+            <div class="content">
+                <div class="product-highlight">
+                    <div style="font-size: 12px; color: #92400E; text-transform: uppercase; font-weight: bold;">Categoría</div>
+                    <div class="product-name">{product_category.upper()}</div>
+                    {f'<div style="font-size: 16px; color: #374151; margin-top: 10px;">Producto: {product_name}</div>' if product_name else ''}
+                    <div style="margin-top: 15px;">
+                        <span class="urgency-badge">Urgencia: {urgency.upper()}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">📋 Información del Ticket</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px 0; color: #6B7280; width: 120px;">Caso #</td><td style="font-weight: bold;">{ticket.get('CaseNumber', ticket.get('Id', 'N/A'))}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Asunto</td><td>{ticket.get('Subject', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Prioridad</td><td>{ticket.get('Priority', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Sentimiento</td><td>{sentiment.capitalize()}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Confianza</td><td style="color: #EF4444; font-weight: bold;">{classification.get('confidence', 0):.0%}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">📝 Descripción del Cliente</div>
+                    <div style="white-space: pre-wrap; color: #374151;">{ticket.get('Description', 'Sin descripción')}</div>
+                </div>
+                
+                <div class="reasoning-box">
+                    <div style="font-weight: bold; color: #92400E; margin-bottom: 10px;">🤖 Análisis del Agente de IA</div>
+                    <div style="white-space: pre-wrap; font-size: 14px;">{classification.get('reasoning', 'Análisis no disponible')}</div>
+                </div>
+                
+                {f'''
+                <div class="response-box">
+                    <div style="font-weight: bold; color: #065F46; margin-bottom: 10px;">💬 Respuesta Sugerida</div>
+                    <div style="white-space: pre-wrap; font-size: 14px;">{classification.get('suggested_response', '')}</div>
+                </div>
+                ''' if classification.get('suggested_response') else ''}
+                
+                <div class="section" style="background: #EFF6FF; border-left-color: #3B82F6;">
+                    <div class="section-title">🎯 Acción Requerida</div>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Revisar la queja del producto identificado</li>
+                        <li>Contactar al cliente según urgencia</li>
+                        <li>Investigar el problema reportado</li>
+                        <li>Proporcionar solución o seguimiento</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>📦 Enviado a <strong>Asesor Experto en Producto</strong></p>
+                <p>🤖 Análisis generado por Belden AI Sales Agent</p>
+                <p style="color: #9CA3AF; font-size: 11px;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return send_email(to_email, subject, html_content)
+
+
+def send_services_agent_email(
+    ticket: dict,
+    classification: dict,
+    redirect_url: str = "",
+    recipient_email: Optional[str] = None
+) -> dict:
+    """
+    Send email to Services Agent for page/service/IT-related tickets.
+    
+    Args:
+        ticket: Ticket/case data
+        classification: AI classification results
+        redirect_url: IT support portal URL (if applicable)
+        recipient_email: Override recipient (defaults to services_agent_email from config)
+    """
+    config = get_resend_config()
+    to_email = recipient_email or config.services_agent_email or config.notification_email
+    
+    if not to_email:
+        logger.warning("⚠️ No services agent email configured")
+        return {"success": False, "error": "No recipient email configured"}
+    
+    sentiment = classification.get("sentiment", "neutral")
+    urgency = classification.get("urgency", "medium")
+    
+    # Urgency colors
+    urgency_colors = {
+        "critical": "#DC2626",
+        "high": "#F59E0B",
+        "medium": "#3B82F6",
+        "low": "#10B981"
+    }
+    urgency_color = urgency_colors.get(urgency, "#6B7280")
+    
+    subject = f"🌐 Solicitud de Servicios/Página: {ticket.get('Subject', 'Sin asunto')[:50]}"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }}
+            .container {{ max-width: 650px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #3B82F6, #1E40AF); color: white; padding: 25px; border-radius: 12px 12px 0 0; }}
+            .header h1 {{ margin: 0; font-size: 24px; }}
+            .content {{ background: #F8FAFC; padding: 25px; }}
+            .section {{ background: white; padding: 20px; margin: 15px 0; border-radius: 10px; border-left: 4px solid #3B82F6; }}
+            .section-title {{ font-weight: bold; color: #1E3A5F; margin-bottom: 10px; font-size: 14px; text-transform: uppercase; }}
+            .services-highlight {{ background: #EFF6FF; padding: 20px; border-radius: 10px; margin: 20px 0; border: 2px solid #3B82F6; text-align: center; }}
+            .urgency-badge {{ display: inline-block; background: {urgency_color}; color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: bold; }}
+            .reasoning-box {{ background: #FEF3C7; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #F59E0B; }}
+            .response-box {{ background: #D1FAE5; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #10B981; }}
+            .redirect-box {{ background: #FEF3C7; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #F59E0B; }}
+            .footer {{ text-align: center; padding: 20px; color: #6B7280; font-size: 12px; border-top: 1px solid #E5E7EB; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🌐 Solicitud de Servicios/Página Web</h1>
+                <p style="margin: 8px 0 0 0; opacity: 0.9;">Asesor de Servicios</p>
+            </div>
+            
+            <div class="content">
+                <div class="services-highlight">
+                    <div style="font-size: 28px; margin: 10px 0;">💻</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #1E40AF;">Tema de Servicios/Página/IT</div>
+                    <div style="margin-top: 15px;">
+                        <span class="urgency-badge">Urgencia: {urgency.upper()}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">📋 Información del Ticket</div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr><td style="padding: 8px 0; color: #6B7280; width: 120px;">Caso #</td><td style="font-weight: bold;">{ticket.get('CaseNumber', ticket.get('Id', 'N/A'))}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Asunto</td><td>{ticket.get('Subject', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Prioridad</td><td>{ticket.get('Priority', 'N/A')}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Sentimiento</td><td>{sentiment.capitalize()}</td></tr>
+                        <tr><td style="padding: 8px 0; color: #6B7280;">Confianza</td><td style="color: #3B82F6; font-weight: bold;">{classification.get('confidence', 0):.0%}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">📝 Descripción del Cliente</div>
+                    <div style="white-space: pre-wrap; color: #374151;">{ticket.get('Description', 'Sin descripción')}</div>
+                </div>
+                
+                {f'''
+                <div class="redirect-box">
+                    <div style="font-weight: bold; color: #92400E; margin-bottom: 10px;">🔗 Portal de IT Support</div>
+                    <p style="margin: 10px 0;"><strong>URL:</strong> <a href="{redirect_url}" style="color: #1E40AF; text-decoration: none;">{redirect_url}</a></p>
+                    <p style="margin: 10px 0; font-size: 14px;">El cliente debe ser dirigido a este portal para resolver su solicitud.</p>
+                </div>
+                ''' if redirect_url else ''}
+                
+                <div class="reasoning-box">
+                    <div style="font-weight: bold; color: #92400E; margin-bottom: 10px;">🤖 Análisis del Agente de IA</div>
+                    <div style="white-space: pre-wrap; font-size: 14px;">{classification.get('reasoning', 'Análisis no disponible')}</div>
+                </div>
+                
+                {f'''
+                <div class="response-box">
+                    <div style="font-weight: bold; color: #065F46; margin-bottom: 10px;">💬 Respuesta Sugerida</div>
+                    <div style="white-space: pre-wrap; font-size: 14px;">{classification.get('suggested_response', '')}</div>
+                </div>
+                ''' if classification.get('suggested_response') else ''}
+                
+                <div class="section" style="background: #EFF6FF; border-left-color: #3B82F6;">
+                    <div class="section-title">🎯 Acción Requerida</div>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Revisar la solicitud del cliente</li>
+                        <li>Proporcionar acceso o solución según el caso</li>
+                        <li>Contactar al cliente si es necesario</li>
+                        <li>Registrar la resolución en el sistema</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>🌐 Enviado a <strong>Asesor de Servicios</strong></p>
+                <p>🤖 Análisis generado por Belden AI Sales Agent</p>
                 <p style="color: #9CA3AF; font-size: 11px;">{datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
             </div>
         </div>

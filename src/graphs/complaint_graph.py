@@ -258,17 +258,20 @@ def decide_action(state: ComplaintState) -> dict:
     """
     Node 3: Decide action based on classification.
     
-    - Product complaint → Send email to product owner
-    - IT Support → Redirect to IT portal
+    - Product complaint → Send email to Product Expert
+    - Services/Page/IT → Send email to Services Agent
     - Other → General handling
     """
     logger.info("=== NODE: DecideAction (Complaint) ===")
     
     classification = state.get("classification", {})
+    from src.config import get_resend_config
     
     is_product = classification.get("is_product_complaint", False)
     is_it = classification.get("is_it_support", False)
     product_category = classification.get("product_category", "none")
+    
+    resend_config = get_resend_config()
     
     decision = {
         "action": "other",
@@ -279,23 +282,25 @@ def decide_action(state: ComplaintState) -> dict:
     }
     
     if is_product:
-        # Product complaint → Email to product owner
-        decision["action"] = "email_product_owner"
-        decision["recipient_email"] = NOTIFICATION_EMAIL  # In production, map to actual product owner
-        decision["message"] = f"Queja de producto ({product_category}) detectada. Se enviará email al encargado."
-        logger.info(f"📧 Action: Send email to product owner for {product_category}")
+        # Product complaint → Email to Product Expert
+        decision["action"] = "email_product_expert"
+        decision["recipient_email"] = resend_config.product_expert_email or resend_config.notification_email
+        decision["message"] = f"Queja de producto ({product_category}) detectada. Se enviará email al Asesor Experto en Producto."
+        logger.info(f"📦 Action: Send email to Product Expert for {product_category}")
         
     elif is_it:
-        # IT Support → Redirect to portal
+        # Services/Page/IT → Email to Services Agent
+        decision["action"] = "email_services_agent"
+        decision["recipient_email"] = resend_config.services_agent_email or resend_config.notification_email
         it_info = get_it_support_redirect()
-        decision["action"] = "redirect_it"
         decision["redirect_url"] = it_info["url"]
-        decision["message"] = it_info["message"]
-        logger.info(f"🔗 Action: Redirect to IT Support portal")
+        decision["message"] = f"Tema de servicios/página/IT detectado. Se enviará email al Asesor de Servicios."
+        logger.info(f"🌐 Action: Send email to Services Agent")
         
     else:
         # Other → General handling
         decision["action"] = "general_handling"
+        decision["recipient_email"] = resend_config.notification_email
         decision["message"] = "Ticket clasificado como consulta general."
         logger.info(f"📋 Action: General handling")
     
@@ -330,22 +335,46 @@ def execute_actions(state: ComplaintState) -> dict:
     email_sent = False
     
     # ========================================================================
-    # 1. ALWAYS SEND EMAIL WITH AI ANALYSIS (for all ticket types)
+    # 1. SEND EMAIL TO APPROPRIATE ADVISOR BASED ON CLASSIFICATION
     # ========================================================================
-    logger.info("📧 Sending AI analysis email...")
+    action = decision.get("action", "")
+    recipient_email = decision.get("recipient_email", "")
     
-    email_result = send_ticket_analysis_email(
-        ticket=case,
-        classification=classification,
-        recipient_email=NOTIFICATION_EMAIL
-    )
+    if action == "email_product_expert":
+        # Send to Product Expert
+        logger.info(f"📧 Sending email to Product Expert: {recipient_email}")
+        from src.tools.email import send_product_expert_email
+        email_result = send_product_expert_email(
+            ticket=case,
+            classification=classification
+        )
+        
+    elif action == "email_services_agent":
+        # Send to Services Agent
+        logger.info(f"📧 Sending email to Services Agent: {recipient_email}")
+        from src.tools.email import send_services_agent_email
+        email_result = send_services_agent_email(
+            ticket=case,
+            classification=classification,
+            redirect_url=decision.get("redirect_url", "")
+        )
+        
+    else:
+        # General handling - send to notification email
+        logger.info(f"📧 Sending email for general inquiry")
+        from src.tools.email import send_ticket_analysis_email
+        email_result = send_ticket_analysis_email(
+            ticket=case,
+            classification=classification,
+            recipient_email=recipient_email
+        )
     
     if email_result.get("success") or email_result.get("id"):
         email_sent = True
-        actions_executed.append(f"email:ai_analysis:{NOTIFICATION_EMAIL}")
-        logger.info(f"✅ AI analysis email sent successfully!")
+        actions_executed.append(f"email:{action}:{recipient_email}")
+        logger.info(f"✅ Email sent successfully to {recipient_email}!")
     else:
-        actions_executed.append("email:ai_analysis:failed")
+        actions_executed.append(f"email:{action}:failed")
         logger.warning(f"⚠️ Failed to send email: {email_result.get('error')}")
     
     # ========================================================================
