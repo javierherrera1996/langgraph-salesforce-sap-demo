@@ -199,11 +199,14 @@ def send_high_value_lead_alert(
         recipient_email: Override recipient (defaults to notification_email from config)
     """
     config = get_resend_config()
-    to_email = recipient_email or config.notification_email or config.from_email
+    # Use sales_agent_email first, then notification_email as fallback
+    to_email = recipient_email or config.sales_agent_email or config.notification_email or config.from_email
     
     if not to_email:
-        logger.warning("⚠️ No notification email configured for lead alerts")
-        return {"success": False, "error": "No recipient email configured"}
+        logger.warning("⚠️ No sales agent email configured for lead alerts")
+        logger.warning(f"   SALES_AGENT_EMAIL: {config.sales_agent_email or 'NOT SET'}")
+        logger.warning(f"   NOTIFICATION_EMAIL: {config.notification_email or 'NOT SET'}")
+        return {"success": False, "error": "No recipient email configured (SALES_AGENT_EMAIL or NOTIFICATION_EMAIL required)"}
     
     # Determine priority styling
     if score >= 0.75:
