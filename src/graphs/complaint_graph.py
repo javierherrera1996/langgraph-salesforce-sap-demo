@@ -280,28 +280,29 @@ def decide_action(state: ComplaintState) -> dict:
         "message": ""
     }
     
-    if is_product:
-        # Product complaint → Email to Product Expert
-        decision["action"] = "email_product_expert"
-        decision["recipient_email"] = resend_config.product_expert_email or resend_config.notification_email
-        decision["message"] = f"Queja de producto ({product_category}) detectada. Se enviará email al Asesor Experto en Producto."
-        logger.info(f"📦 Action: Send email to Product Expert for {product_category}")
-        
-    elif is_it:
-        # Services/Page/IT → Email to Services Agent
+    if is_it:
+        # IT Support → Email to Services Agent
         decision["action"] = "email_services_agent"
         decision["recipient_email"] = resend_config.services_agent_email or resend_config.notification_email
         it_info = get_it_support_redirect()
         decision["redirect_url"] = it_info["url"]
-        decision["message"] = f"Tema de servicios/página/IT detectado. Se enviará email al Asesor de Servicios."
-        logger.info(f"🌐 Action: Send email to Services Agent")
+        decision["message"] = f"IT Support issue detected. Sending email to Services Agent with IT portal link."
+        logger.info(f"🌐 Action: Send email to Services Agent (IT Support)")
+        
+    elif is_product:
+        # Product complaint → Email to Product Expert
+        decision["action"] = "email_product_expert"
+        decision["recipient_email"] = resend_config.product_expert_email or resend_config.notification_email
+        decision["message"] = f"Product complaint ({product_category}) detected. Sending email to Product Expert."
+        logger.info(f"📦 Action: Send email to Product Expert for {product_category}")
         
     else:
-        # Other → General handling
-        decision["action"] = "general_handling"
-        decision["recipient_email"] = resend_config.notification_email
-        decision["message"] = "Ticket clasificado como consulta general."
-        logger.info(f"📋 Action: General handling")
+        # Default: If NOT IT support → Send to Product Expert
+        # This handles general product inquiries or unclear classifications
+        decision["action"] = "email_product_expert"
+        decision["recipient_email"] = resend_config.product_expert_email or resend_config.notification_email
+        decision["message"] = f"General inquiry (not IT support). Sending email to Product Expert for review."
+        logger.info(f"📦 Action: Send email to Product Expert (default - not IT support)")
     
     return {
         "decision": decision,
