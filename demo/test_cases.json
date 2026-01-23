@@ -1,0 +1,311 @@
+{
+  "lead_qualification": {
+    "high_value_lead_1": {
+      "description": "Enterprise CTO with high revenue - Should score >= 75% and send email to sales agent",
+      "lead_data": {
+        "Id": "test-lead-001",
+        "Company": "TechCorp Industries",
+        "FirstName": "Jane",
+        "LastName": "Smith",
+        "Title": "Chief Technology Officer",
+        "Email": "jane.smith@techcorp.com",
+        "Phone": "+1-555-0100",
+        "Industry": "Technology",
+        "Rating": "Hot",
+        "AnnualRevenue": 50000000,
+        "NumberOfEmployees": 5000,
+        "LeadSource": "Partner Referral",
+        "Description": "We are expanding our manufacturing facilities and need industrial network infrastructure. Budget approved for Q2 2024. Looking for switches, cables, and network management solutions. We have 3 facilities that need to be connected."
+      },
+      "use_llm": true,
+      "expected_score": ">= 0.75",
+      "expected_routing": "Account Executive",
+      "expected_email": true
+    },
+    "high_value_lead_2": {
+      "description": "VP Engineering from Financial Services - Should score >= 60% and send email",
+      "lead_data": {
+        "Id": "test-lead-002",
+        "Company": "Global Finance Corp",
+        "FirstName": "Michael",
+        "LastName": "Johnson",
+        "Title": "VP of Engineering",
+        "Email": "m.johnson@globalfinance.com",
+        "Phone": "+1-555-0200",
+        "Industry": "Financial Services",
+        "Rating": "Hot",
+        "AnnualRevenue": 25000000,
+        "NumberOfEmployees": 2000,
+        "LeadSource": "Website",
+        "Description": "We need to upgrade our network infrastructure for our new data center. Looking for reliable industrial switches and fiber optic cables. Timeline: Q3 2024."
+      },
+      "use_llm": true,
+      "expected_score": ">= 0.60",
+      "expected_routing": "Account Executive",
+      "expected_email": true
+    },
+    "medium_value_lead": {
+      "description": "Director from mid-market company - Should score 45-59%, no email",
+      "lead_data": {
+        "Id": "test-lead-003",
+        "Company": "MidTech Solutions",
+        "FirstName": "Sarah",
+        "LastName": "Williams",
+        "Title": "Director of IT",
+        "Email": "s.williams@midtech.com",
+        "Phone": "+1-555-0300",
+        "Industry": "Technology",
+        "Rating": "Warm",
+        "AnnualRevenue": 8000000,
+        "NumberOfEmployees": 250,
+        "LeadSource": "Web",
+        "Description": "We are evaluating network solutions for our office expansion."
+      },
+      "use_llm": true,
+      "expected_score": "0.45-0.59",
+      "expected_routing": "SDR",
+      "expected_email": false
+    },
+    "low_value_lead": {
+      "description": "Small business owner - Should score < 45%, route to nurture",
+      "lead_data": {
+        "Id": "test-lead-004",
+        "Company": "Small Business Inc",
+        "FirstName": "Bob",
+        "LastName": "Miller",
+        "Title": "Owner",
+        "Email": "bob@smallbiz.com",
+        "Phone": "+1-555-0400",
+        "Industry": "Retail",
+        "Rating": "Cold",
+        "AnnualRevenue": 500000,
+        "NumberOfEmployees": 15,
+        "LeadSource": "Cold Call",
+        "Description": "Just looking for some basic networking equipment."
+      },
+      "use_llm": true,
+      "expected_score": "< 0.45",
+      "expected_routing": "Nurture Campaign",
+      "expected_email": false
+    },
+    "healthcare_lead": {
+      "description": "Healthcare CTO - High value, should send email",
+      "lead_data": {
+        "Id": "test-lead-005",
+        "Company": "Metro Health Systems",
+        "FirstName": "Dr. Patricia",
+        "LastName": "Chen",
+        "Title": "Chief Technology Officer",
+        "Email": "p.chen@metrohealth.org",
+        "Phone": "+1-555-0500",
+        "Industry": "Healthcare",
+        "Rating": "Hot",
+        "AnnualRevenue": 75000000,
+        "NumberOfEmployees": 8000,
+        "LeadSource": "Event",
+        "Description": "We are building a new hospital wing and need industrial-grade network infrastructure that meets healthcare compliance standards. Need switches, cables, and network management software. Budget: $2M approved."
+      },
+      "use_llm": true,
+      "expected_score": ">= 0.75",
+      "expected_routing": "Account Executive",
+      "expected_email": true
+    }
+  },
+  "complaint_classification": {
+    "product_switch_complaint": {
+      "description": "Switch product complaint - Should go to Product Expert",
+      "case_data": {
+        "Id": "test-case-001",
+        "CaseNumber": "00001234",
+        "Subject": "Hirschmann Switch Keeps Restarting",
+        "Description": "Our Hirschmann industrial switch has been restarting every 2-3 hours for the past week. This is affecting our production line. We've tried power cycling but the issue persists. The switch is model RS20-0800T1T1SDAEHC. This is urgent as it's impacting our operations.",
+        "Priority": "High",
+        "Origin": "Web"
+      },
+      "use_llm": true,
+      "expected_classification": "product",
+      "expected_category": "switches",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert"
+    },
+    "product_cable_complaint": {
+      "description": "Cable product complaint - Should go to Product Expert",
+      "case_data": {
+        "Id": "test-case-002",
+        "CaseNumber": "00001235",
+        "Subject": "Fiber Optic Cable Defective",
+        "Description": "The fiber optic cable we purchased last month is not working correctly. The connector seems loose and we're experiencing signal loss. Product SKU: FO-1234-50M. We need a replacement or refund.",
+        "Priority": "Medium",
+        "Origin": "Email"
+      },
+      "use_llm": true,
+      "expected_classification": "product",
+      "expected_category": "cables",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert"
+    },
+    "product_connector_complaint": {
+      "description": "Connector product complaint - Should go to Product Expert",
+      "case_data": {
+        "Id": "test-case-003",
+        "CaseNumber": "00001236",
+        "Subject": "Connector Not Fitting Properly",
+        "Description": "The RJ45 connectors we received don't fit our patch panel. They seem to be slightly out of spec. We ordered 100 units and none of them work. This is delaying our installation project.",
+        "Priority": "High",
+        "Origin": "Phone"
+      },
+      "use_llm": true,
+      "expected_classification": "product",
+      "expected_category": "connectors",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert"
+    },
+    "product_software_complaint": {
+      "description": "Software product complaint - Should go to Product Expert",
+      "case_data": {
+        "Id": "test-case-004",
+        "CaseNumber": "00001237",
+        "Subject": "Network Management Software Bug",
+        "Description": "The latest firmware update for our network management software has a critical bug. The dashboard crashes when we try to view device status. Version 2.3.1. We need a hotfix urgently.",
+        "Priority": "Critical",
+        "Origin": "Web"
+      },
+      "use_llm": true,
+      "expected_classification": "product",
+      "expected_category": "software",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert"
+    },
+    "it_support_portal": {
+      "description": "IT support - Portal access issue - Should go to Services Agent",
+      "case_data": {
+        "Id": "test-case-005",
+        "CaseNumber": "00001238",
+        "Subject": "Cannot Access Customer Portal",
+        "Description": "I cannot log into the customer portal. My password doesn't work and the password reset link is not being sent to my email. I've tried multiple times. My account email is customer@example.com.",
+        "Priority": "Medium",
+        "Origin": "Web"
+      },
+      "use_llm": true,
+      "expected_classification": "it_support",
+      "expected_recipient": "SERVICES_AGENT_EMAIL",
+      "expected_action": "email_services_agent",
+      "expected_redirect": true
+    },
+    "it_support_password": {
+      "description": "IT support - Password reset - Should go to Services Agent",
+      "case_data": {
+        "Id": "test-case-006",
+        "CaseNumber": "00001239",
+        "Subject": "Forgot My Password",
+        "Description": "I forgot my password for the support portal. The password recovery system is not working. I need help accessing my account.",
+        "Priority": "Low",
+        "Origin": "Email"
+      },
+      "use_llm": true,
+      "expected_classification": "it_support",
+      "expected_recipient": "SERVICES_AGENT_EMAIL",
+      "expected_action": "email_services_agent",
+      "expected_redirect": true
+    },
+    "it_support_vpn": {
+      "description": "IT support - VPN configuration - Should go to Services Agent",
+      "case_data": {
+        "Id": "test-case-007",
+        "CaseNumber": "00001240",
+        "Subject": "Need Help Configuring VPN",
+        "Description": "I need assistance setting up VPN access to download software updates. Can someone guide me through the process?",
+        "Priority": "Low",
+        "Origin": "Web"
+      },
+      "use_llm": true,
+      "expected_classification": "it_support",
+      "expected_recipient": "SERVICES_AGENT_EMAIL",
+      "expected_action": "email_services_agent",
+      "expected_redirect": true
+    },
+    "general_product_inquiry": {
+      "description": "General product inquiry (not IT) - Should go to Product Expert by default",
+      "case_data": {
+        "Id": "test-case-008",
+        "CaseNumber": "00001241",
+        "Subject": "Product Information Request",
+        "Description": "I would like to know more about your industrial switches. What models do you have available? What are the specifications? Do you have any documentation I can review?",
+        "Priority": "Low",
+        "Origin": "Web"
+      },
+      "use_llm": true,
+      "expected_classification": "general",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert"
+    },
+    "general_question": {
+      "description": "General question (not IT, not specific product) - Should go to Product Expert by default",
+      "case_data": {
+        "Id": "test-case-009",
+        "CaseNumber": "00001242",
+        "Subject": "Pricing Information",
+        "Description": "I'm interested in your network solutions. Can you provide pricing information for a medium-sized installation? We're planning a new office building.",
+        "Priority": "Low",
+        "Origin": "Email"
+      },
+      "use_llm": true,
+      "expected_classification": "general",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert"
+    },
+    "urgent_product_issue": {
+      "description": "Urgent product issue - Should go to Product Expert with high urgency",
+      "case_data": {
+        "Id": "test-case-010",
+        "CaseNumber": "00001243",
+        "Subject": "URGENT: Production Line Down Due to Network Failure",
+        "Description": "Our entire production line is down because the network switch failed. This is costing us thousands per hour. We need immediate support. The switch is a Hirschmann RS30 model. Please send a technician or replacement immediately.",
+        "Priority": "Critical",
+        "Origin": "Phone"
+      },
+      "use_llm": true,
+      "expected_classification": "product",
+      "expected_category": "switches",
+      "expected_recipient": "PRODUCT_EXPERT_EMAIL",
+      "expected_action": "email_product_expert",
+      "expected_urgency": "critical"
+    }
+  },
+  "usage_instructions": {
+    "lead_qualification": {
+      "endpoint": "POST /run/lead",
+      "example": {
+        "lead_data": {
+          "Id": "test-lead-001",
+          "Company": "TechCorp Industries",
+          "FirstName": "Jane",
+          "LastName": "Smith",
+          "Title": "Chief Technology Officer",
+          "Email": "jane.smith@techcorp.com",
+          "Industry": "Technology",
+          "Rating": "Hot",
+          "AnnualRevenue": 50000000,
+          "NumberOfEmployees": 5000,
+          "LeadSource": "Partner Referral",
+          "Description": "We need industrial network infrastructure..."
+        },
+        "use_llm": true
+      },
+      "curl_example": "curl -X POST http://localhost:8000/run/lead -H 'Content-Type: application/json' -d @lead_test.json"
+    },
+    "complaint_classification": {
+      "endpoint": "POST /run/ticket",
+      "example": {
+        "case_data": {
+          "Id": "test-case-001",
+          "Subject": "Switch Not Working",
+          "Description": "Our switch keeps restarting...",
+          "Priority": "High"
+        },
+        "use_llm": true
+      },
+      "curl_example": "curl -X POST http://localhost:8000/run/ticket -H 'Content-Type: application/json' -d @ticket_test.json"
+    }
+  }
+}

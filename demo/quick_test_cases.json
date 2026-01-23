@@ -1,0 +1,91 @@
+{
+  "leads": [
+    {
+      "name": "High-Value Enterprise Lead",
+      "lead_data": {
+        "Id": "test-lead-hv-001",
+        "Company": "TechCorp Industries",
+        "FirstName": "Jane",
+        "LastName": "Smith",
+        "Title": "Chief Technology Officer",
+        "Email": "jane.smith@techcorp.com",
+        "Phone": "+1-555-0100",
+        "Industry": "Technology",
+        "Rating": "Hot",
+        "AnnualRevenue": 50000000,
+        "NumberOfEmployees": 5000,
+        "LeadSource": "Partner Referral",
+        "Description": "We are expanding our manufacturing facilities and need industrial network infrastructure. Budget approved for Q2 2024. Looking for switches, cables, and network management solutions."
+      },
+      "use_llm": true
+    },
+    {
+      "name": "Medium-Value Lead",
+      "lead_data": {
+        "Id": "test-lead-mv-001",
+        "Company": "MidTech Solutions",
+        "FirstName": "Sarah",
+        "LastName": "Williams",
+        "Title": "Director of IT",
+        "Email": "s.williams@midtech.com",
+        "Industry": "Technology",
+        "Rating": "Warm",
+        "AnnualRevenue": 8000000,
+        "NumberOfEmployees": 250,
+        "LeadSource": "Web",
+        "Description": "We are evaluating network solutions for our office expansion."
+      },
+      "use_llm": true
+    }
+  ],
+  "tickets": [
+    {
+      "name": "Product Complaint - Switch",
+      "case_data": {
+        "Id": "test-case-switch-001",
+        "CaseNumber": "00001234",
+        "Subject": "Hirschmann Switch Keeps Restarting",
+        "Description": "Our Hirschmann industrial switch has been restarting every 2-3 hours for the past week. This is affecting our production line. The switch is model RS20-0800T1T1SDAEHC. This is urgent.",
+        "Priority": "High",
+        "Origin": "Web"
+      },
+      "use_llm": true
+    },
+    {
+      "name": "Product Complaint - Cable",
+      "case_data": {
+        "Id": "test-case-cable-001",
+        "CaseNumber": "00001235",
+        "Subject": "Fiber Optic Cable Defective",
+        "Description": "The fiber optic cable we purchased last month is not working correctly. The connector seems loose and we're experiencing signal loss. Product SKU: FO-1234-50M.",
+        "Priority": "Medium",
+        "Origin": "Email"
+      },
+      "use_llm": true
+    },
+    {
+      "name": "IT Support - Portal Access",
+      "case_data": {
+        "Id": "test-case-it-001",
+        "CaseNumber": "00001238",
+        "Subject": "Cannot Access Customer Portal",
+        "Description": "I cannot log into the customer portal. My password doesn't work and the password reset link is not being sent to my email.",
+        "Priority": "Medium",
+        "Origin": "Web"
+      },
+      "use_llm": true
+    },
+    {
+      "name": "General Product Inquiry",
+      "case_data": {
+        "Id": "test-case-gen-001",
+        "CaseNumber": "00001241",
+        "Subject": "Product Information Request",
+        "Description": "I would like to know more about your industrial switches. What models do you have available? What are the specifications?",
+        "Priority": "Low",
+        "Origin": "Web"
+      },
+      "use_llm": true
+    }
+  ]
+}
