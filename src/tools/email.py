@@ -46,8 +46,11 @@ def send_email(
     config = get_resend_config()
     
     # Log configuration status
+    api_key_preview = config.api_key[:20] + "..." if config.api_key and len(config.api_key) > 20 else (config.api_key or "NOT SET")
     logger.info(f"📧 Email send attempt - Config check:")
-    logger.info(f"   API Key configured: {bool(config.api_key and config.api_key != 're_YOUR_RESEND_API_KEY')}")
+    logger.info(f"   API Key: {api_key_preview}")
+    logger.info(f"   API Key length: {len(config.api_key) if config.api_key else 0}")
+    logger.info(f"   API Key configured: {config.is_configured}")
     logger.info(f"   From email: {config.from_email}")
     logger.info(f"   To email: {to}")
     
