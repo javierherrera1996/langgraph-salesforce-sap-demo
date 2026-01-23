@@ -60,42 +60,64 @@ def send_email(
         }
     
     try:
-        import resend
+        import requests
         
-        # Set API key
-        resend.api_key = config.api_key
+        # Use Resend REST API directly
+        api_url = "https://api.resend.com/emails"
+        headers = {
+            "Authorization": f"Bearer {config.api_key}",
+            "Content-Type": "application/json"
+        }
         
-        params = {
+        payload = {
             "from": from_email or config.from_email,
-            "to": [to],
+            "to": [to] if isinstance(to, str) else to,
             "subject": subject,
             "html": html_content
         }
         
-        response = resend.Emails.send(params)
+        response = requests.post(api_url, json=payload, headers=headers)
         
-        logger.info(f"✅ Email sent successfully to: {to}")
-        logger.info(f"   Message ID: {response.get('id', 'N/A')}")
-        
-        return {
-            "success": True,
-            "simulated": False,
-            "message_id": response.get("id"),
-            "to": to,
-            "subject": subject,
-            "from": from_email or config.from_email
-        }
+        if response.status_code == 200:
+            result = response.json()
+            message_id = result.get("id", "N/A")
+            logger.info(f"✅ Email sent successfully to: {to}")
+            logger.info(f"   Message ID: {message_id}")
+            
+            return {
+                "success": True,
+                "simulated": False,
+                "message_id": message_id,
+                "to": to,
+                "subject": subject,
+                "from": from_email or config.from_email
+            }
+        else:
+            error_data = response.json() if response.content else {}
+            error_msg = error_data.get("message", f"HTTP {response.status_code}")
+            logger.error(f"❌ Failed to send email to {to}: {error_msg}")
+            logger.error(f"   Response: {response.text}")
+            
+            return {
+                "success": False,
+                "error": error_msg,
+                "error_details": error_data,
+                "status_code": response.status_code,
+                "to": to,
+                "subject": subject
+            }
         
     except ImportError:
-        logger.error("❌ Resend package not installed. Run: pip install resend")
+        logger.error("❌ Requests package not installed. Run: pip install requests")
         return {
             "success": False,
-            "error": "Resend package not installed",
+            "error": "Requests package not installed",
             "to": to,
             "subject": subject
         }
     except Exception as e:
         logger.error(f"❌ Failed to send email to {to}: {e}")
+        logger.exception("Full error traceback:")
         return {
             "success": False,
             "error": str(e),
