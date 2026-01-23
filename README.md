@@ -466,6 +466,77 @@ For production, set:
 - LangSmith API key
 - GCP credentials (for Agent Engine)
 
+## 🎨 Visualización y Depuración
+
+### LangGraph Studio (Local)
+
+Visualiza y depura tus grafos localmente con LangGraph Studio:
+
+```bash
+# Opción 1: Usar el script helper
+./scripts/start_studio.sh
+
+# Opción 2: Manual
+langgraph dev
+```
+
+Luego abre `http://localhost:8123` en tu navegador.
+
+**Características:**
+- ✅ Visualización interactiva de grafos
+- ✅ Depuración paso a paso
+- ✅ Edición de estado en tiempo real
+- ✅ Pruebas con datos de ejemplo
+
+**Ver documentación completa:** [`docs/LANGGRAPH_STUDIO_SETUP.md`](docs/LANGGRAPH_STUDIO_SETUP.md)
+
+### LangSmith Dashboard (Agente Desplegado)
+
+Monitorea el agente desplegado en Vertex AI:
+
+1. **Configurar LangSmith en Vertex AI:**
+   ```bash
+   # Actualizar variables de entorno
+   python update_env_vars.py
+   ```
+   
+   Asegúrate de incluir:
+   ```env
+   LANGSMITH_API_KEY=lsv2_tu-api-key
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_PROJECT=belden-sales-agent-prod
+   ```
+
+2. **Ver trazas recientes:**
+   ```bash
+   # Ver últimas 10 ejecuciones
+   python scripts/view_traces.py --limit 10
+   
+   # Filtrar por workflow
+   python scripts/view_traces.py --workflow lead_qualification
+   
+   # Ver solo errores
+   python scripts/view_traces.py --status error
+   ```
+
+3. **Abrir Dashboard:**
+   - Ve a [LangSmith Dashboard](https://smith.langchain.com)
+   - Selecciona tu proyecto
+   - Explora ejecuciones, grafos, y LLM calls
+
+**Ver documentación completa:** [`docs/LANGGRAPH_STUDIO_SETUP.md`](docs/LANGGRAPH_STUDIO_SETUP.md)
+
+### Comparación: Local vs Desplegado
+
+| Característica | LangGraph Studio (Local) | LangSmith (Desplegado) |
+|----------------|-------------------------|------------------------|
+| Visualización de grafos | ✅ Interactiva | ✅ Con trazas |
+| Depuración paso a paso | ✅ Sí | ⚠️ Solo trazas |
+| Edición de estado | ✅ Sí | ❌ No |
+| Monitoreo producción | ❌ No | ✅ Sí |
+| Comparar ejecuciones | ⚠️ Limitado | ✅ Sí |
+| Análisis de rendimiento | ⚠️ Básico | ✅ Avanzado |
+
 ## 📝 License
 
 MIT License - see LICENSE file for details.
