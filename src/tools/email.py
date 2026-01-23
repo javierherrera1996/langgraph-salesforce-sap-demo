@@ -308,10 +308,6 @@ def send_high_value_lead_alert(
     </body>
     </html>
     """
-        </div>
-    </body>
-    </html>
-    """
     
     return send_email(to_email, subject, html_content)
 
