@@ -48,6 +48,12 @@ def ensure_tracing_enabled():
 
 def get_llm(temperature: float = 0.0, model: str = "gpt-4o-mini") -> ChatOpenAI:
     """
+    Get LLM instance with deterministic settings for consistent scoring.
+    
+    Note: Temperature is set to 0.0 for maximum determinism.
+    For lead scoring, we want consistent results for the same input.
+    """
+    """
     Get configured LLM instance with LangSmith tracing enabled.
     
     Args:
@@ -57,11 +63,15 @@ def get_llm(temperature: float = 0.0, model: str = "gpt-4o-mini") -> ChatOpenAI:
     # Ensure tracing is configured
     ensure_tracing_enabled()
     
+    # Force deterministic JSON output for consistent scoring
     return ChatOpenAI(
         model=model,
-        temperature=temperature,
-        max_tokens=1500,
-        model_kwargs={"response_format": {"type": "json_object"}},
+        temperature=temperature,  # Should be 0.0 for lead scoring
+        max_tokens=2000,  # Increased for detailed reasoning
+        model_kwargs={
+            "response_format": {"type": "json_object"},
+            "seed": 42  # Add seed for reproducibility (if supported)
+        },
     )
 
 
@@ -109,71 +119,91 @@ class TicketCategoryOutput(BaseModel):
 # Lead Scoring Prompts
 # ============================================================================
 
-LEAD_SCORING_SYSTEM_PROMPT = """You are an expert B2B sales lead qualification specialist at a Fortune 500 company.
-Your analysis will be reviewed by sales leadership - provide clear, actionable reasoning.
+LEAD_SCORING_SYSTEM_PROMPT = """You are a deterministic B2B sales lead qualification specialist. 
+You MUST provide CONSISTENT scores for the same lead data. Use strict numerical rules.
 
-## YOUR MISSION
-Analyze each lead and assign a qualification score with DETAILED REASONING that explains:
-1. WHY you assigned this specific score
-2. WHAT factors were most influential (positive and negative)
-3. HOW SAP data enriched your understanding
-4. WHAT should happen next with this lead
+## CRITICAL: DETERMINISTIC SCORING
+- Same input data MUST produce the same score (within 0.02 variance)
+- Use the scoring formula below - do NOT use intuition
+- Calculate points systematically, then convert to 0.0-1.0 scale
 
-## IDEAL CUSTOMER PROFILE (ICP)
-Target: Enterprise companies that use Belden network infrastructure
-- Industry fit: Technology, Financial Services, Healthcare, Manufacturing
-- Company size: 500+ employees, $10M+ annual revenue
-- Decision maker titles: C-level (CTO, CIO, CFO), VP, Director of IT/Engineering
-- Buying signals: Hot/Warm rating, Referral/Event source, clear budget authority
+## SCORING FORMULA (Base Score Calculation)
 
-## SCORING RUBRIC
+### Step 1: Title Score (0.0 - 0.30 points)
+- C-Level (CEO, CTO, CIO, CFO, COO): 0.30 points
+- VP (Vice President, VP Engineering, VP IT): 0.25 points
+- Director (Director of IT, Director Engineering): 0.18 points
+- Manager (IT Manager, Engineering Manager): 0.12 points
+- Senior/Lead (Senior Engineer, Lead Developer): 0.08 points
+- Individual Contributor/Analyst/Coordinator: 0.03 points
+- Owner (small business): 0.10 points
+- Other/Unknown: 0.05 points
 
-### P1 / HOT (Score 0.75-1.0) → Route to Account Executive
-Criteria (must meet 3+ of these):
-✓ C-level or VP title with budget authority
-✓ Enterprise company (1000+ employees OR $50M+ revenue)
-✓ Target industry (Technology, Financial Services, Healthcare)
-✓ Hot rating or Partner Referral source
-✓ Existing SAP customer with A/A+ credit rating
-✓ Clear description mentioning budget, timeline, or project
+### Step 2: Company Size Score (0.0 - 0.25 points)
+- 10,000+ employees OR $500M+ revenue: 0.25 points
+- 5,000-9,999 employees OR $200M-499M revenue: 0.22 points
+- 1,000-4,999 employees OR $50M-199M revenue: 0.18 points
+- 500-999 employees OR $20M-49M revenue: 0.15 points
+- 100-499 employees OR $5M-19M revenue: 0.10 points
+- 50-99 employees OR $2M-4.9M revenue: 0.06 points
+- 10-49 employees OR $500K-1.9M revenue: 0.03 points
+- <10 employees OR <$500K revenue: 0.01 points
 
-### P2 / WARM (Score 0.45-0.74) → Route to SDR for Qualification
-Criteria (must meet 2+ of these):
-✓ Director or Manager level with influence
-✓ Mid-market company (100-999 employees OR $5M-50M revenue)
-✓ Acceptable industry with potential
-✓ Warm rating or Web/Event source
-✓ Shows interest but needs discovery
+### Step 3: Industry Fit Score (0.0 - 0.15 points)
+- Technology: 0.15 points
+- Financial Services: 0.15 points
+- Healthcare: 0.15 points
+- Manufacturing: 0.12 points
+- Telecommunications: 0.12 points
+- Energy/Utilities: 0.10 points
+- Logistics/Transportation: 0.08 points
+- Retail/Consumer: 0.03 points
+- Other: 0.05 points
 
-### P3 / COLD (Score 0.00-0.44) → Route to Nurture Campaign
-Criteria (any of these):
-✗ Junior title (Analyst, Coordinator, Individual Contributor)
-✗ Small company (<100 employees OR <$5M revenue)
-✗ Poor industry fit (Consumer, Retail not in target)
-✗ Cold rating or unclear buying intent
-✗ No decision-making power indicated
+### Step 4: Buying Signals Score (0.0 - 0.20 points)
+- Rating: Hot = 0.10, Warm = 0.06, Cold = 0.02
+- Source: Partner Referral = 0.08, Event = 0.06, Web = 0.04, Cold Call = 0.02
+- Description contains: "budget" = +0.02, "timeline" = +0.02, "project" = +0.02, "approved" = +0.02
 
-## SAP ENRICHMENT BONUSES
-- Existing customer with orders: +0.08 to score
-- Credit rating A or A+: +0.05 to score
-- Recent orders (active relationship): +0.03 to score
-- High total revenue history: indicates strategic value
+### Step 5: SAP Enrichment Bonus (0.0 - 0.10 points)
+- Existing customer with orders: +0.08 points
+- Credit rating A or A+: +0.05 points
+- Credit rating B: +0.03 points
+- Recent orders (last 6 months): +0.02 points
+- High lifetime revenue ($1M+): +0.02 points
 
-## REASONING FORMAT
-Your reasoning MUST follow this structure:
-"[VERDICT: P1/P2/P3] This lead scores [X.XX] because:
-1. TITLE ANALYSIS: [analysis of job title and decision authority]
-2. COMPANY FIT: [analysis of company size, industry, revenue]
-3. BUYING SIGNALS: [analysis of rating, source, description intent]
-4. SAP CONTEXT: [how SAP data influenced the score, if applicable]
-CONCLUSION: [recommended action and why]"
+## FINAL SCORE CALCULATION
+Total Points = Title + Company Size + Industry + Buying Signals + SAP Bonus
+Final Score = min(1.0, Total Points)  # Cap at 1.0
 
-Respond ONLY with valid JSON. Be specific in your reasoning - vague explanations are not acceptable."""
+## PRIORITY ASSIGNMENT (Based on Final Score)
+- Score 0.75-1.00 → P1 (HOT) → Route to Account Executive
+- Score 0.45-0.74 → P2 (WARM) → Route to SDR
+- Score 0.00-0.44 → P3 (COLD) → Route to Nurture Campaign
 
-LEAD_SCORING_USER_PROMPT = """ANALYZE THIS LEAD FOR QUALIFICATION:
+## REASONING FORMAT (Required Structure)
+"[VERDICT: P1/P2/P3] This lead scores [X.XX] calculated as:
+1. TITLE: [title] = [X.XX] points
+2. COMPANY SIZE: [employees] employees, ${revenue} revenue = [X.XX] points
+3. INDUSTRY: [industry] = [X.XX] points
+4. BUYING SIGNALS: Rating=[rating] ([X.XX]), Source=[source] ([X.XX]), Description keywords=[keywords] ([X.XX]) = [X.XX] total
+5. SAP BONUS: [details] = [X.XX] points
+TOTAL: [sum] points → Final Score: [X.XX]
+CONCLUSION: [recommended action]"
+
+## CRITICAL RULES
+1. ALWAYS calculate points using the formula above
+2. ALWAYS show your calculation in reasoning
+3. Same input = same calculation = same score
+4. Round final score to 2 decimal places (e.g., 0.75, not 0.753)
+5. Be deterministic - no guessing or intuition
+
+Respond ONLY with valid JSON following the exact structure."""
+
+LEAD_SCORING_USER_PROMPT = """CALCULATE LEAD QUALIFICATION SCORE USING THE FORMULA:
 
 ═══════════════════════════════════════════════════════════
-LEAD PROFILE
+LEAD DATA
 ═══════════════════════════════════════════════════════════
 • Full Name: {name}
 • Job Title: {title}
@@ -200,15 +230,23 @@ SAP ERP ENRICHMENT DATA
 ═══════════════════════════════════════════════════════════
 YOUR TASK
 ═══════════════════════════════════════════════════════════
-Provide comprehensive qualification analysis with:
-1. score (0.0-1.0) - qualification score
-2. confidence (0.0-1.0) - your confidence in this assessment
-3. priority (P1, P2, or P3) - routing priority
-4. reasoning (string) - DETAILED explanation following the format
-5. key_factors (array) - top 3-5 factors that influenced your decision
-6. recommended_action (string) - specific next step for sales
+1. Calculate points for EACH category using the formula:
+   - Title Score: Look up {title} in the title scoring table
+   - Company Size Score: Use {employees:,} employees OR ${revenue:,.0f} revenue
+   - Industry Score: Look up {industry} in the industry table
+   - Buying Signals: Rating={rating}, Source={source}, check description for keywords
+   - SAP Bonus: Check {is_customer}, {credit_rating}, {total_orders}, ${total_revenue:,.0f}
 
-Remember: Your reasoning will be shown to sales leadership. Be specific and actionable."""
+2. Sum all points: Total = Title + Company + Industry + Buying + SAP
+
+3. Final Score = min(1.0, Total) rounded to 2 decimals
+
+4. Priority: P1 if score >= 0.75, P2 if score >= 0.45, P3 otherwise
+
+5. Provide reasoning showing your calculation step-by-step
+
+CRITICAL: Use the exact formula. Same data = same calculation = same score.
+Be deterministic and show your math."""
 
 
 # ============================================================================
@@ -403,7 +441,11 @@ Provide your classification in JSON format. All responses must be in English."""
 # ============================================================================
 
 def create_lead_scoring_chain():
-    """Create the lead scoring chain with structured output and LangSmith naming."""
+    """Create the lead scoring chain with structured output and LangSmith naming.
+    
+    Uses temperature=0.0 for maximum determinism - same input should produce same output.
+    """
+    # Force temperature to 0.0 for deterministic scoring
     llm = get_llm(temperature=0.0, model="gpt-4o-mini")
     
     prompt = ChatPromptTemplate.from_messages([
