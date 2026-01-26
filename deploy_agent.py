@@ -274,37 +274,52 @@ def deploy_ticket_triage_agent():
     return remote_agent
 
 
-def deploy_combined_agent():
-    """Deploy the combined Belden Sales Agent."""
+def deploy_combined_agent(force_recreate: bool = False):
+    """Deploy the combined Belden Sales Agent.
+
+    Args:
+        force_recreate: If True, delete existing agent and create new one
+    """
     import vertexai
     from vertexai import agent_engines
     from src.app import BeldenSalesAgentApp
-    
+
     validate_config()
-    
+
     logger.info(f"Initializing Vertex AI for project: {PROJECT_ID}, location: {LOCATION}")
-    
+
     vertexai.init(
         project=PROJECT_ID,
         location=LOCATION,
         staging_bucket=STAGING_BUCKET
     )
-    
+
     logger.info("Vertex AI SDK initialized successfully")
-    
+
     # Create agent instance
     agent_to_deploy = BeldenSalesAgentApp(
         project=PROJECT_ID,
         location=LOCATION,
         use_llm=True
     )
-    
+
     # Get environment variables
     env_vars = get_agent_env_vars()
-    
+
+    # Log critical env vars for debugging (masked)
+    logger.info("=" * 60)
+    logger.info("🔍 ENVIRONMENT VARIABLES CHECK:")
+    logger.info(f"   SALESFORCE_MODE: {env_vars.get('SALESFORCE_MODE', 'NOT SET')}")
+    logger.info(f"   SALESFORCE_AUTH_TYPE: {env_vars.get('SALESFORCE_AUTH_TYPE', 'NOT SET')}")
+    logger.info(f"   SALESFORCE_INSTANCE_URL: {env_vars.get('SALESFORCE_INSTANCE_URL', 'NOT SET')[:50]}...")
+    logger.info(f"   SALESFORCE_CLIENT_ID: {'SET' if env_vars.get('SALESFORCE_CLIENT_ID') else 'NOT SET'}")
+    logger.info(f"   SALESFORCE_CLIENT_SECRET: {'SET' if env_vars.get('SALESFORCE_CLIENT_SECRET') else 'NOT SET'}")
+    logger.info(f"   DEFAULT_AE_OWNER_ID: {env_vars.get('DEFAULT_AE_OWNER_ID', 'NOT SET')}")
+    logger.info("=" * 60)
+
     # Check for existing agent
     logger.info(f"Checking for existing agent: '{AGENT_DISPLAY_NAME}'...")
-    
+
     try:
         existing_agents = agent_engines.list()
         found_agent = next(
@@ -314,14 +329,25 @@ def deploy_combined_agent():
     except Exception as e:
         logger.warning(f"Could not list existing agents: {e}")
         found_agent = None
-    
+
     remote_agent = None
-    
+
     try:
+        # Force recreate: delete existing and create new
+        if found_agent and force_recreate:
+            logger.info(f"🗑️  Force recreate requested. Deleting existing agent: {found_agent.name}")
+            try:
+                agent_engines.delete(found_agent.name)
+                logger.info("✅ Existing agent deleted successfully")
+                found_agent = None  # Will create new one below
+            except Exception as e:
+                logger.error(f"Failed to delete agent: {e}")
+                raise
+
         if found_agent:
             logger.info(f"Found existing agent: {found_agent.name}")
             logger.info("Updating agent...")
-            
+
             remote_agent = agent_engines.update(
                 resource_name=found_agent.name,
                 agent_engine=agent_to_deploy,
@@ -331,11 +357,11 @@ def deploy_combined_agent():
                 description=AGENT_DESCRIPTION,
                 env_vars=env_vars,
             )
-            
+
             logger.info("✅ Agent Engine updated successfully!")
         else:
             logger.info(f"No existing agent found. Creating new agent...")
-            
+
             remote_agent = agent_engines.create(
                 agent_engine=agent_to_deploy,
                 requirements="requirements.txt",
@@ -344,7 +370,7 @@ def deploy_combined_agent():
                 description=AGENT_DESCRIPTION,
                 env_vars=env_vars,
             )
-            
+
             logger.info("✅ New Agent Engine created successfully!")
         
         # Display results
@@ -429,7 +455,12 @@ def main():
         type=str,
         help="Agent resource name (required for test mode)"
     )
-    
+    parser.add_argument(
+        "--force-recreate",
+        action="store_true",
+        help="Delete existing agent and create new one (ensures fresh deployment)"
+    )
+
     args = parser.parse_args()
     
     logger.info("=" * 60)
@@ -439,10 +470,11 @@ def main():
     logger.info(f"Location: {LOCATION}")
     logger.info(f"Staging Bucket: {STAGING_BUCKET}")
     logger.info(f"Mode: {args.mode}")
+    logger.info(f"Force Recreate: {args.force_recreate}")
     logger.info("=" * 60)
     
     if args.mode == "combined":
-        deploy_combined_agent()
+        deploy_combined_agent(force_recreate=args.force_recreate)
     elif args.mode == "lead":
         deploy_lead_qualification_agent()
     elif args.mode == "ticket":
