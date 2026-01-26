@@ -110,7 +110,10 @@ def fetch_ticket(state: ComplaintState) -> dict:
     Node 1: Fetch case/ticket from Salesforce.
     """
     logger.info("=== NODE: FetchTicket (Complaint) ===")
-    
+
+    # Ensure Salesforce is authenticated
+    salesforce.authenticate()
+
     case = state.get("case", {})
     
     if case and case.get("Id"):

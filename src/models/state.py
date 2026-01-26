@@ -61,10 +61,19 @@ class LLMLeadAnalysis(TypedDict, total=False):
     model_used: str
 
 
+class LeadInputState(TypedDict, total=False):
+    """
+    Input schema for Lead Qualification graph.
+    Only requires lead data and use_llm flag.
+    """
+    lead: LeadData
+    use_llm: bool
+
+
 class LeadState(TypedDict):
     """
     State schema for Lead Qualification & Routing graph.
-    
+
     Attributes:
         lead: Raw Salesforce Lead data
         enriched: SAP business context (optional)

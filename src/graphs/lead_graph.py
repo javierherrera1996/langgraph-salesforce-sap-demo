@@ -21,7 +21,7 @@ from langgraph.graph import StateGraph, END
 from langsmith import traceable
 
 from src.config import get_routing_config
-from src.models.state import LeadState, create_initial_lead_state
+from src.models.state import LeadState, LeadInputState, create_initial_lead_state
 from src.tools import salesforce, sap, scoring
 from src.tools.llm import score_lead_with_llm, ensure_tracing_enabled
 from src.tools.email import send_high_value_lead_alert
@@ -40,12 +40,15 @@ ensure_tracing_enabled()
 def fetch_lead(state: LeadState) -> dict:
     """
     Node 1: Fetch lead data from Salesforce.
-    
+
     If state already has a lead, uses that.
     Otherwise fetches the first new lead.
     """
     logger.info("=== NODE: FetchLead ===")
-    
+
+    # Ensure Salesforce is authenticated
+    salesforce.authenticate()
+
     lead = state.get("lead", {})
     
     if lead and lead.get("Id"):
@@ -159,8 +162,9 @@ def score_lead(state: LeadState) -> dict:
             
             logger.info(f"🤖 LLM Score: {total_score:.4f}")
             logger.info(f"   Confidence: {llm_result['confidence']:.2f}")
-            logger.info(f"   Key factors: {', '.join(llm_result['key_factors'][:2])}")
-            logger.info(f"   Reasoning: {llm_result['reasoning'][:100]}...")
+            logger.info(f"   Key factors: {', '.join(llm_result['key_factors'][:2]) if llm_result.get('key_factors') else 'N/A'}")
+            reasoning_str = str(llm_result.get('reasoning', ''))[:100]
+            logger.info(f"   Reasoning: {reasoning_str}...")
             
             return {
                 "score": total_score,
@@ -292,7 +296,29 @@ def execute_actions(state: LeadState) -> dict:
     result = salesforce.update_lead_status(lead_id, new_status)
     actions_executed.append(f"sf:update_status:{new_status}")
     logger.info(f"Updated lead status: {new_status}")
-    
+
+    # 2.5. Update custom fields with AI analysis results
+    llm_analysis = state.get("llm_analysis", {})
+
+    # Prepare custom fields update payload
+    custom_fields_update = {
+        "Score__c": score,
+        "Confidence__c": llm_analysis.get("confidence", 0.0),
+        "Key_factor__c": "\n".join(llm_analysis.get("key_factors", [])) if llm_analysis.get("key_factors") else "",
+        "Recommended_Action__c": llm_analysis.get("recommended_action", ""),
+        "Routing_reason__c": route.get("reason", ""),
+        "Routing_reasoning__c": str(llm_analysis.get("reasoning", ""))[:32000]  # Text area limit
+    }
+
+    # Update Lead with custom fields
+    try:
+        update_result = salesforce.update_lead(lead_id, custom_fields_update)
+        actions_executed.append(f"sf:update_custom_fields:{lead_id}")
+        logger.info(f"Updated Lead custom fields with AI analysis: Score={score:.2f}, Confidence={llm_analysis.get('confidence', 0.0):.2f}")
+    except Exception as e:
+        logger.warning(f"Failed to update custom fields: {e}")
+        actions_executed.append(f"sf:update_custom_fields:failed:{str(e)[:50]}")
+
     # 3. Create follow-up task
     priority = route.get("priority", "P3")
     task_subject = f"[{priority}] Follow up with {lead.get('Name', 'Lead')}"
@@ -384,9 +410,10 @@ def build_lead_graph():
         Compiled StateGraph ready for execution
     """
     logger.info("Building Lead Qualification Graph")
-    
-    # Create graph with state schema
-    graph = StateGraph(LeadState)
+
+    # Create graph with state schema and input schema
+    # Input schema only requires 'lead' and 'use_llm', rest is initialized by nodes
+    graph = StateGraph(LeadState, input=LeadInputState)
     
     # Add nodes
     graph.add_node("FetchLead", fetch_lead)
@@ -486,7 +513,8 @@ def run_lead_qualification(lead: dict = None, use_llm: bool = True) -> LeadState
         logger.info("=" * 60)
         logger.info("")
         # Print reasoning with nice formatting
-        reasoning_lines = llm_analysis['reasoning'].split('\n')
+        reasoning_text = str(llm_analysis['reasoning']) if llm_analysis.get('reasoning') else ""
+        reasoning_lines = reasoning_text.split('\n')
         for line in reasoning_lines:
             logger.info(f"   {line}")
         logger.info("")

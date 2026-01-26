@@ -406,6 +406,43 @@ def update_lead_status(lead_id: str, status: str) -> dict:
     return {"success": True, "id": lead_id, "status": status}
 
 
+def update_lead(lead_id: str, fields: dict) -> dict:
+    """
+    Update a lead with arbitrary fields.
+
+    Args:
+        lead_id: Salesforce Lead ID
+        fields: Dictionary of field names and values to update
+
+    Returns:
+        Operation result
+    """
+    logger.info(f"Updating lead {lead_id} with fields: {list(fields.keys())}")
+
+    if _is_mock_mode():
+        logger.info(f"[MOCK] Lead {lead_id} updated with {len(fields)} fields")
+        return {"success": True, "id": lead_id, "fields_updated": list(fields.keys())}
+
+    # Sanitize text fields
+    sanitized_fields = {}
+    for key, value in fields.items():
+        if isinstance(value, str):
+            sanitized_fields[key] = _sanitize_text(value)
+        else:
+            sanitized_fields[key] = value
+
+    url = f"{_get_api_url()}/sobjects/Lead/{lead_id}"
+    response = requests.patch(
+        url,
+        headers=_get_headers(),
+        json=sanitized_fields,
+        timeout=30
+    )
+    response.raise_for_status()
+
+    return {"success": True, "id": lead_id, "fields_updated": list(fields.keys())}
+
+
 def assign_owner(object_id: str, owner_id: str, object_type: str = "Lead") -> dict:
     """
     Assign an owner to a Salesforce object.
