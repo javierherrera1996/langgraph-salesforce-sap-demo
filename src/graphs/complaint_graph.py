@@ -108,6 +108,9 @@ def create_initial_complaint_state(case: dict, use_llm: bool = True) -> Complain
 def fetch_ticket(state: ComplaintState) -> dict:
     """
     Node 1: Fetch case/ticket from Salesforce.
+
+    If a case ID is provided but without full data (Subject/Description),
+    fetches the complete case from Salesforce.
     """
     logger.info("=== NODE: FetchTicket (Complaint) ===")
 
@@ -115,24 +118,44 @@ def fetch_ticket(state: ComplaintState) -> dict:
     salesforce.authenticate()
 
     case = state.get("case", {})
-    
+
     if case and case.get("Id"):
-        logger.info(f"Using provided case: {case['Id']}")
-        return {"actions_done": [f"fetch_ticket:existing:{case['Id']}"]}
-    
-    # Fetch new cases
+        case_id = case["Id"]
+
+        # Check if we have the necessary data for classification
+        has_content = case.get("Subject") or case.get("Description")
+
+        if has_content:
+            logger.info(f"Using provided case with content: {case_id}")
+            return {"actions_done": [f"fetch_ticket:existing:{case_id}"]}
+
+        # Case ID provided but no content - fetch full case from Salesforce
+        logger.info(f"Case ID provided without content, fetching from Salesforce: {case_id}")
+        full_case = salesforce.get_case_by_id(case_id)
+
+        if full_case:
+            logger.info(f"Fetched full case: {case_id} - {full_case.get('Subject', 'No Subject')[:50]}")
+            return {
+                "case": full_case,
+                "actions_done": [f"fetch_ticket:fetched_by_id:{case_id}"]
+            }
+        else:
+            logger.warning(f"Could not fetch case {case_id} from Salesforce, using provided data")
+            return {"actions_done": [f"fetch_ticket:existing_incomplete:{case_id}"]}
+
+    # No case provided - fetch new cases
     cases = salesforce.get_new_cases(limit=1)
-    
+
     if not cases:
         logger.warning("No new cases found")
         return {
             "case": {},
             "actions_done": ["fetch_ticket:none_found"]
         }
-    
+
     case = cases[0]
     logger.info(f"Fetched case: {case['Id']} - {case.get('Subject', 'No Subject')[:50]}")
-    
+
     return {
         "case": case,
         "actions_done": [f"fetch_ticket:fetched:{case['Id']}"]
