@@ -212,6 +212,16 @@ def get_settings() -> AppSettings:
     return AppSettings()
 
 
+def clear_settings_cache():
+    """
+    Clear the settings cache.
+
+    Call this after environment variables have been loaded/updated
+    to ensure settings are reloaded with new values.
+    """
+    get_settings.cache_clear()
+
+
 # Convenience accessors
 def get_salesforce_config() -> SalesforceSettings:
     """Get Salesforce configuration."""

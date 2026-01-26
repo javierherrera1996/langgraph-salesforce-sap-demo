@@ -50,25 +50,55 @@ def fetch_lead(state: LeadState) -> dict:
     salesforce.authenticate()
 
     lead = state.get("lead", {})
-    
+
+    # Case 1: Lead has an Id - check if it exists or create it
     if lead and lead.get("Id"):
-        # Lead already provided in state
-        logger.info(f"Using provided lead: {lead['Id']}")
-        return {"actions_done": [f"fetch_lead:existing:{lead['Id']}"]}
-    
-    # Fetch new leads from Salesforce
+        lead_id = lead["Id"]
+
+        # Check if lead exists in Salesforce
+        if salesforce.lead_exists(lead_id):
+            logger.info(f"Using existing lead: {lead_id}")
+            return {"actions_done": [f"fetch_lead:existing:{lead_id}"]}
+        else:
+            # Lead ID provided but doesn't exist - create new lead with provided data
+            logger.info(f"Lead {lead_id} not found, creating new lead...")
+            created_lead = salesforce.create_lead(lead)
+            new_id = created_lead.get("Id") or created_lead.get("id")
+            logger.info(f"Created new lead: {new_id}")
+
+            # Update lead data with new ID
+            lead["Id"] = new_id
+            return {
+                "lead": lead,
+                "actions_done": [f"fetch_lead:created:{new_id}"]
+            }
+
+    # Case 2: Lead data provided without Id - create new lead
+    if lead and (lead.get("Company") or lead.get("LastName")):
+        logger.info("Creating new lead from provided data...")
+        created_lead = salesforce.create_lead(lead)
+        new_id = created_lead.get("Id") or created_lead.get("id")
+        logger.info(f"Created new lead: {new_id}")
+
+        lead["Id"] = new_id
+        return {
+            "lead": lead,
+            "actions_done": [f"fetch_lead:created:{new_id}"]
+        }
+
+    # Case 3: No lead data - fetch new leads from Salesforce
     leads = salesforce.get_new_leads(limit=1)
-    
+
     if not leads:
         logger.warning("No new leads found")
         return {
             "lead": {},
             "actions_done": ["fetch_lead:none_found"]
         }
-    
+
     lead = leads[0]
     logger.info(f"Fetched lead: {lead['Id']} - {lead.get('Company', 'Unknown')}")
-    
+
     return {
         "lead": lead,
         "actions_done": [f"fetch_lead:fetched:{lead['Id']}"]

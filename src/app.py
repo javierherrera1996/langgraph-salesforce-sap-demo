@@ -60,18 +60,23 @@ class LeadQualificationAgentApp:
     def set_up(self):
         """
         Set up the agent (called once when agent is deployed).
-        
+
         This method is called by Vertex AI Agent Engine during initialization.
         Import heavy dependencies here to avoid cold start delays.
         """
         logger.info("Setting up Lead Qualification Agent...")
-        
+
         # Load environment variables
         load_dotenv()
-        
-        # Import and configure LangSmith
-        from src.config import get_settings
+
+        # Clear and reload settings to ensure env vars are picked up
+        from src.config import get_settings, clear_settings_cache
+        clear_settings_cache()
         settings = get_settings()
+
+        # Log Salesforce config for debugging
+        logger.info(f"Salesforce config - mode: {settings.salesforce.is_mock}, auth_type: {settings.salesforce.auth_type}")
+
         settings.configure_langsmith()
         
         # Import graph builder (heavy import)
@@ -199,16 +204,22 @@ class TicketTriageAgentApp:
     def set_up(self):
         """Set up the agent (called once when agent is deployed)."""
         logger.info("Setting up Ticket Triage Agent...")
-        
+
         load_dotenv()
-        
-        from src.config import get_settings
+
+        # Clear and reload settings to ensure env vars are picked up
+        from src.config import get_settings, clear_settings_cache
+        clear_settings_cache()
         settings = get_settings()
+
+        # Log Salesforce config for debugging
+        logger.info(f"Salesforce config - mode: {settings.salesforce.is_mock}, auth_type: {settings.salesforce.auth_type}")
+
         settings.configure_langsmith()
-        
+
         from src.graphs.ticket_graph import build_ticket_graph
         self._graph = build_ticket_graph()
-        
+
         logger.info("Ticket Triage Agent set up complete!")
     
     def triage_ticket(
@@ -314,14 +325,20 @@ class ComplaintClassificationAgentApp:
         """Set up the agent."""
         logger.info("Setting up Complaint Classification Agent...")
         load_dotenv()
-        
-        from src.config import get_settings
+
+        # Clear and reload settings to ensure env vars are picked up
+        from src.config import get_settings, clear_settings_cache
+        clear_settings_cache()
         settings = get_settings()
+
+        # Log Salesforce config for debugging
+        logger.info(f"Salesforce config - mode: {settings.salesforce.is_mock}, auth_type: {settings.salesforce.auth_type}")
+
         settings.configure_langsmith()
-        
+
         from src.graphs.complaint_graph import build_complaint_graph
         self._graph = build_complaint_graph()
-        
+
         logger.info("Complaint Classification Agent set up complete!")
     
     def classify_complaint(
@@ -427,13 +444,19 @@ class BeldenSalesAgentApp:
     def set_up(self):
         """Set up all sub-agents."""
         logger.info("Setting up Belden Sales Agent (Lead Qualification + Complaint Classification)...")
-        
+
         load_dotenv()
-        
-        from src.config import get_settings
+
+        # Clear and reload settings to ensure env vars are picked up
+        from src.config import get_settings, clear_settings_cache
+        clear_settings_cache()
         settings = get_settings()
+
+        # Log Salesforce config for debugging
+        logger.info(f"Salesforce config - mode: {settings.salesforce.is_mock}, auth_type: {settings.salesforce.auth_type}")
+
         settings.configure_langsmith()
-        
+
         # Initialize Lead Qualification agent
         self._lead_agent = LeadQualificationAgentApp(
             project=self.project,

@@ -443,6 +443,80 @@ def update_lead(lead_id: str, fields: dict) -> dict:
     return {"success": True, "id": lead_id, "fields_updated": list(fields.keys())}
 
 
+def create_lead(lead_data: dict) -> dict:
+    """
+    Create a new Lead in Salesforce.
+
+    Args:
+        lead_data: Dictionary with lead fields. Required: LastName, Company.
+                   Optional: FirstName, Email, Phone, Title, Industry, etc.
+
+    Returns:
+        Created lead with Id
+    """
+    logger.info(f"Creating new lead: {lead_data.get('LastName', 'Unknown')} at {lead_data.get('Company', 'Unknown')}")
+
+    if _is_mock_mode():
+        import random
+        mock_id = f"00Q{random.randint(100000000000, 999999999999)}MOCK"
+        logger.info(f"[MOCK] Created lead {mock_id}")
+        return {"success": True, "id": mock_id, "created": True, **lead_data, "Id": mock_id}
+
+    # Sanitize text fields
+    sanitized_data = {}
+    for key, value in lead_data.items():
+        if key == "Id":  # Skip Id field for creation
+            continue
+        if isinstance(value, str):
+            sanitized_data[key] = _sanitize_text(value)
+        else:
+            sanitized_data[key] = value
+
+    # Ensure required fields
+    if "LastName" not in sanitized_data:
+        sanitized_data["LastName"] = "Unknown"
+    if "Company" not in sanitized_data:
+        sanitized_data["Company"] = "Unknown Company"
+
+    url = f"{_get_api_url()}/sobjects/Lead"
+    response = requests.post(
+        url,
+        headers=_get_headers(),
+        json=sanitized_data,
+        timeout=30
+    )
+    response.raise_for_status()
+
+    result = response.json()
+    new_id = result.get("id")
+    logger.info(f"Created lead with ID: {new_id}")
+
+    return {"success": True, "id": new_id, "created": True, **lead_data, "Id": new_id}
+
+
+def lead_exists(lead_id: str) -> bool:
+    """
+    Check if a Lead exists in Salesforce.
+
+    Args:
+        lead_id: Salesforce Lead ID
+
+    Returns:
+        True if lead exists, False otherwise
+    """
+    if _is_mock_mode():
+        # In mock mode, assume lead exists if ID looks valid
+        return lead_id and lead_id.startswith("00Q") and "MOCK" not in lead_id
+
+    try:
+        url = f"{_get_api_url()}/sobjects/Lead/{lead_id}"
+        response = requests.get(url, headers=_get_headers(), timeout=10)
+        return response.status_code == 200
+    except Exception as e:
+        logger.warning(f"Error checking if lead exists: {e}")
+        return False
+
+
 def assign_owner(object_id: str, owner_id: str, object_type: str = "Lead") -> dict:
     """
     Assign an owner to a Salesforce object.
