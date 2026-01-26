@@ -50,18 +50,31 @@ def _check_should_mock() -> bool:
     # Check for placeholder/missing credentials
     placeholder_values = [
         "your_connected_app_client_id",
-        "your_connected_app_client_secret", 
+        "your_connected_app_client_secret",
         "your_salesforce_username",
         "your_salesforce_password",
         "your_security_token",
-        ""
     ]
-    
+
+    # For client_credentials, only check client_id and client_secret
+    if config.auth_type == "client_credentials":
+        return (
+            config.client_id in placeholder_values or
+            config.client_id == "" or
+            config.client_secret in placeholder_values or
+            config.client_secret == ""
+        )
+
+    # For password flow, also check username and password
     return (
         config.client_id in placeholder_values or
+        config.client_id == "" or
         config.client_secret in placeholder_values or
+        config.client_secret == "" or
         config.username in placeholder_values or
-        config.password in placeholder_values
+        config.username == "" or
+        config.password in placeholder_values or
+        config.password == ""
     )
 
 

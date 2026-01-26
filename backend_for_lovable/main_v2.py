@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 API Gateway for Lovable to connect to Vertex AI Agent
-This backend uses Vertex AI SDK to call the Agent Engine correctly
+This backend uses Vertex AI SDK to call the Reasoning Engine correctly
 """
 
 import os
@@ -13,7 +13,7 @@ import logging
 
 # Vertex AI imports
 import vertexai
-from vertexai import agent_engines
+from vertexai.preview import reasoning_engines
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -53,7 +53,7 @@ _agent = None
 
 
 def get_agent():
-    """Get or initialize the Agent Engine."""
+    """Get or initialize the Reasoning Engine agent."""
     global _agent
 
     if _agent is None:
@@ -64,10 +64,10 @@ def get_agent():
             )
 
         try:
-            logger.info(f"Initializing Agent Engine: {AGENT_ENGINE_ID}")
+            logger.info(f"Initializing Reasoning Engine: {AGENT_ENGINE_ID}")
             resource_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{AGENT_ENGINE_ID}"
-            _agent = agent_engines.get(resource_name)
-            logger.info("Agent Engine initialized successfully")
+            _agent = reasoning_engines.ReasoningEngine(resource_name)
+            logger.info("✅ Reasoning Engine initialized")
         except Exception as e:
             logger.error(f"Failed to initialize agent: {e}")
             raise HTTPException(
@@ -100,9 +100,7 @@ async def root():
     return {
         "status": "healthy",
         "service": "Belden AI Agent API Gateway",
-        "version": "3.0.0",
-        "agent_endpoint": AGENT_ENDPOINT,
-        "engine_id": AGENT_ENGINE_ID
+        "version": "2.0.0"
     }
 
 
@@ -141,8 +139,7 @@ async def chat_with_agent(request: ChatRequest):
         # Determine action based on request data
         if request.lead_data:
             logger.info("Qualifying lead...")
-            result = agent.query(
-                action="qualify_lead",
+            result = agent.qualify_lead(
                 lead_data=request.lead_data,
                 use_llm=True
             )
@@ -155,8 +152,7 @@ async def chat_with_agent(request: ChatRequest):
 
         elif request.ticket_data:
             logger.info("Classifying ticket...")
-            result = agent.query(
-                action="classify_complaint",
+            result = agent.classify_complaint(
                 case_data=request.ticket_data,
                 use_llm=True
             )
@@ -183,7 +179,7 @@ async def chat_with_agent(request: ChatRequest):
                     error="Generic chat not supported"
                 )
 
-        logger.info("Agent response received successfully")
+        logger.info("✅ Agent response received")
 
         return ChatResponse(
             success=True,
@@ -192,8 +188,6 @@ async def chat_with_agent(request: ChatRequest):
             error=None
         )
 
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error calling agent: {e}")
         raise HTTPException(
