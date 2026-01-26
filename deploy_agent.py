@@ -104,12 +104,13 @@ def get_agent_env_vars() -> dict:
             "SALESFORCE_INSTANCE_URL",
             "SALESFORCE_CLIENT_ID",
             "SALESFORCE_CLIENT_SECRET",
+            "SALESFORCE_AUTH_TYPE",  # IMPORTANT: client_credentials or password
             "SALESFORCE_USERNAME",
             "SALESFORCE_PASSWORD",
             "SALESFORCE_SECURITY_TOKEN",
             "SALESFORCE_LOGIN_URL",
             "SALESFORCE_API_VERSION",
-            
+
             # SAP (Optional - for real integration)
             "SAP_MODE",
             "SAP_BASE_URL",
@@ -117,12 +118,16 @@ def get_agent_env_vars() -> dict:
             "SAP_USERNAME",
             "SAP_PASSWORD",
             "SAP_CLIENT",
-            
-            # Routing Configuration (Optional)
+
+            # Routing Configuration - Both naming conventions
             "ROUTING_AE_OWNER_ID",
             "ROUTING_SDR_OWNER_ID",
             "ROUTING_NURTURE_OWNER_ID",
             "ROUTING_ESCALATION_OWNER_ID",
+            "DEFAULT_AE_OWNER_ID",
+            "DEFAULT_SDR_OWNER_ID",
+            "DEFAULT_NURTURE_OWNER_ID",
+            "DEFAULT_ESCALATION_OWNER_ID",
             
             # Product Owner Emails (Optional - for specific product routing)
             "PRODUCT_OWNER_SWITCHES",
