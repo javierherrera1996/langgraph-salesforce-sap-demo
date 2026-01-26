@@ -178,20 +178,20 @@ Examples:
     # Get LangSmith API key
     api_key = os.getenv("LANGSMITH_API_KEY")
     if not api_key:
-        print("❌ LANGSMITH_API_KEY no está configurado en .env")
-        print("   Agrega: LANGSMITH_API_KEY=lsv2_tu-api-key")
+        print("❌ LANGSMITH_API_KEY is not configured in .env")
+        print("   Add: LANGSMITH_API_KEY=lsv2_your-api-key")
         sys.exit(1)
-    
+
     # Get project
     project = args.project or os.getenv("LANGCHAIN_PROJECT", "default")
-    
-    print("🔍 Conectando a LangSmith...")
+
+    print("🔍 Connecting to LangSmith...")
     print(f"   Project: {project}")
-    
+
     try:
         client = Client(api_key=api_key)
     except Exception as e:
-        print(f"❌ Error conectando a LangSmith: {e}")
+        print(f"❌ Error connecting to LangSmith: {e}")
         sys.exit(1)
     
     # Build filters

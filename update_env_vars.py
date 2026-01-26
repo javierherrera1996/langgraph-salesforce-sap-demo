@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-Actualizar variables de entorno del agente en Vertex AI Agent Engine.
+Update agent environment variables in Vertex AI Agent Engine.
 
-Uso:
+Usage:
     python update_env_vars.py
 
-Antes de ejecutar:
-    1. Edita las variables abajo
-    2. Asegúrate de estar autenticado: gcloud auth application-default login
+Before running:
+    1. Edit the variables below
+    2. Make sure you're authenticated: gcloud auth application-default login
 """
 
 import os
 from pathlib import Path
 from dotenv import load_dotenv, dotenv_values
 
-# Cargar .env local
+# Load local .env
 load_dotenv()
 
-# Configuración del agente
+# Agent configuration
 PROJECT_ID = os.getenv("PROJECT_ID", "logical-hallway-485016-r7")
 LOCATION = os.getenv("LOCATION", "us-central1")
 AGENT_ID = "180545306838958080"
@@ -25,16 +25,16 @@ AGENT_RESOURCE = f"projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{
 
 
 def get_env_vars_from_file() -> dict:
-    """Lee las variables del archivo .env"""
+    """Read variables from .env file"""
     dotenv_path = Path('.env')
-    
+
     if not dotenv_path.exists():
-        print("❌ No se encontró archivo .env")
+        print("❌ .env file not found")
         return {}
-    
+
     env_dict = dotenv_values(dotenv_path)
-    
-    # Filtrar solo las variables que queremos pasar al agente
+
+    # Filter only the variables we want to pass to the agent
     keys_to_include = [
         # OpenAI
         "OPENAI_API_KEY",
@@ -99,61 +99,61 @@ def get_env_vars_from_file() -> dict:
 
 
 def update_agent_env_vars(env_vars: dict):
-    """Actualiza las variables de entorno del agente"""
+    """Updates agent environment variables"""
     import vertexai
     from vertexai import agent_engines
-    
-    print(f"🔧 Conectando a Vertex AI...")
+
+    print(f"🔧 Connecting to Vertex AI...")
     print(f"   Project: {PROJECT_ID}")
     print(f"   Location: {LOCATION}")
     print(f"   Agent: {AGENT_ID}")
-    
+
     vertexai.init(project=PROJECT_ID, location=LOCATION)
-    
-    print(f"\n📋 Variables a actualizar:")
+
+    print(f"\n📋 Variables to update:")
     for key in env_vars.keys():
-        # Ocultar valores sensibles
+        # Hide sensitive values
         if "KEY" in key or "SECRET" in key or "PASSWORD" in key or "TOKEN" in key:
             print(f"   {key}: ***hidden***")
         else:
             print(f"   {key}: {env_vars[key]}")
     
-    print(f"\n⏳ Actualizando agente...")
-    
+    print(f"\n⏳ Updating agent...")
+
     try:
         agent_engines.update(
             resource_name=AGENT_RESOURCE,
             env_vars=env_vars
         )
-        print(f"\n✅ Variables de entorno actualizadas exitosamente!")
-        print(f"\n🔗 Verifica en: https://console.cloud.google.com/vertex-ai/agents?project={PROJECT_ID}")
-        
+        print(f"\n✅ Environment variables updated successfully!")
+        print(f"\n🔗 Verify at: https://console.cloud.google.com/vertex-ai/agents?project={PROJECT_ID}")
+
     except Exception as e:
-        print(f"\n❌ Error al actualizar: {e}")
+        print(f"\n❌ Error updating: {e}")
         raise
 
 
 def main():
     print("=" * 60)
-    print("🔄 ACTUALIZAR VARIABLES DE ENTORNO - AGENT ENGINE")
+    print("🔄 UPDATE ENVIRONMENT VARIABLES - AGENT ENGINE")
     print("=" * 60)
-    
-    # Obtener variables del .env
+
+    # Get variables from .env
     env_vars = get_env_vars_from_file()
-    
+
     if not env_vars:
-        print("❌ No hay variables para actualizar")
+        print("❌ No variables to update")
         return
-    
-    print(f"\n📁 Cargadas {len(env_vars)} variables desde .env")
-    
-    # Confirmar
-    response = input("\n¿Deseas continuar con la actualización? (y/n): ")
+
+    print(f"\n📁 Loaded {len(env_vars)} variables from .env")
+
+    # Confirm
+    response = input("\nDo you want to continue with the update? (y/n): ")
     if response.lower() != 'y':
-        print("❌ Cancelado")
+        print("❌ Cancelled")
         return
-    
-    # Actualizar
+
+    # Update
     update_agent_env_vars(env_vars)
 
 

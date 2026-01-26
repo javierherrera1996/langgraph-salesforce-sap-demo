@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test directo de Resend usando la API key proporcionada.
+Direct test of Resend using the provided API key.
 """
 
 import sys
@@ -16,7 +16,7 @@ import resend
 API_KEY = "re_JqyccKa7_LhZSx8XcXEXLoNbEBc8iSLKy"
 TO_EMAIL = "andreshebe96@gmail.com"
 
-print("🧪 Test Directo de Resend")
+print("🧪 Direct Resend Test")
 print("=" * 60)
 print(f"API Key: {API_KEY[:20]}...{API_KEY[-4:]}")
 print(f"To: {TO_EMAIL}")
@@ -44,21 +44,21 @@ try:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin:0;">✅ Resend Funcionando!</h1>
-                    <p style="margin:5px 0 0 0;">Belden AI Agent - Test Directo</p>
+                    <h1 style="margin:0;">✅ Resend Working!</h1>
+                    <p style="margin:5px 0 0 0;">Belden AI Agent - Direct Test</p>
                 </div>
                 <div class="content">
                     <div class="success">
-                        <h2 style="margin:0; color: #065F46;">🎉 ¡Funciona!</h2>
+                        <h2 style="margin:0; color: #065F46;">🎉 It Works!</h2>
                         <p style="margin:10px 0 0 0; color: #047857;">
-                            Si estás viendo este email, Resend está configurado correctamente.
+                            If you're seeing this email, Resend is configured correctly.
                         </p>
                     </div>
-                    <p>El sistema ahora puede enviar emails automáticamente cuando:</p>
+                    <p>The system can now send emails automatically when:</p>
                     <ul>
-                        <li>📊 Un lead tiene score >= 60%</li>
-                        <li>📦 Se detecta una queja de producto</li>
-                        <li>🎫 Se clasifica un ticket (siempre envía análisis del AI)</li>
+                        <li>📊 A lead has score >= 60%</li>
+                        <li>📦 A product complaint is detected</li>
+                        <li>🎫 A ticket is classified (always sends AI analysis)</li>
                     </ul>
                 </div>
             </div>
@@ -67,14 +67,14 @@ try:
         """
     }
     
-    print("\n📧 Enviando email...")
+    print("\n📧 Sending email...")
     response = resend.Emails.send(params)
-    
-    print("✅ Email enviado exitosamente!")
+
+    print("✅ Email sent successfully!")
     print(f"   Message ID: {response.get('id', 'N/A')}")
     print(f"   To: {TO_EMAIL}")
     print(f"   From: onboarding@resend.dev")
-    print("\n💡 Revisa tu bandeja de entrada (y spam) en unos segundos")
+    print("\n💡 Check your inbox (and spam) in a few seconds")
     print("=" * 60)
     
 except Exception as e:

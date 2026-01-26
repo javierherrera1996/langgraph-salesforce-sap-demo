@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Script de prueba para verificar que Resend está configurado correctamente.
+Test script to verify that Resend is configured correctly.
 
 Usage:
     python scripts/test_resend.py
-    python scripts/test_resend.py --to tu-email@ejemplo.com
+    python scripts/test_resend.py --to your-email@example.com
 """
 
 import argparse
@@ -28,45 +28,45 @@ from src.config import get_resend_config
 
 def test_resend_config():
     """Test Resend configuration."""
-    print("🔍 Verificando configuración de Resend...")
+    print("🔍 Checking Resend configuration...")
     print("=" * 60)
-    
+
     config = get_resend_config()
-    
+
     # Check API key
     if not config.api_key:
-        print("❌ RESEND_API_KEY no está configurado")
+        print("❌ RESEND_API_KEY is not configured")
         return False
-    
+
     if config.api_key.startswith("re_YOUR") or config.api_key.startswith("your_"):
-        print("❌ RESEND_API_KEY parece ser un placeholder")
-        print(f"   Valor actual: {config.api_key[:20]}...")
+        print("❌ RESEND_API_KEY appears to be a placeholder")
+        print(f"   Current value: {config.api_key[:20]}...")
         return False
     
-    print(f"✅ RESEND_API_KEY configurado: {config.api_key[:10]}...{config.api_key[-4:]}")
-    
+    print(f"✅ RESEND_API_KEY configured: {config.api_key[:10]}...{config.api_key[-4:]}")
+
     # Check from email
     print(f"✅ RESEND_FROM_EMAIL: {config.from_email}")
-    
+
     # Check notification email
     if config.notification_email:
         print(f"✅ NOTIFICATION_EMAIL: {config.notification_email}")
     else:
-        print("⚠️  NOTIFICATION_EMAIL no configurado (usará RESEND_FROM_EMAIL)")
-    
+        print("⚠️  NOTIFICATION_EMAIL not configured (will use RESEND_FROM_EMAIL)")
+
     # Check IT support URL
     print(f"✅ IT_SUPPORT_URL: {config.it_support_url}")
-    
+
     print("=" * 60)
     return True
 
 
 def test_send_email(to_email: str):
     """Test sending an email."""
-    print(f"\n📧 Enviando email de prueba a: {to_email}")
+    print(f"\n📧 Sending test email to: {to_email}")
     print("=" * 60)
-    
-    subject = "🧪 Test de Resend - Belden AI Agent"
+
+    subject = "🧪 Resend Test - Belden AI Agent"
     html_content = """
     <!DOCTYPE html>
     <html>
@@ -83,32 +83,32 @@ def test_send_email(to_email: str):
     <body>
         <div class="container">
             <div class="header">
-                <h1 style="margin:0;">✅ Resend Configurado Correctamente</h1>
-                <p style="margin:5px 0 0 0;">Belden AI Agent - Test de Email</p>
+                <h1 style="margin:0;">✅ Resend Configured Correctly</h1>
+                <p style="margin:5px 0 0 0;">Belden AI Agent - Email Test</p>
             </div>
-            
+
             <div class="content">
                 <div class="success">
-                    <h2 style="margin:0; color: #065F46;">🎉 ¡Funciona!</h2>
+                    <h2 style="margin:0; color: #065F46;">🎉 It Works!</h2>
                     <p style="margin:10px 0 0 0; color: #047857;">
-                        Si estás viendo este email, significa que Resend está configurado correctamente
-                        y el sistema puede enviar emails automáticamente.
+                        If you're seeing this email, it means Resend is configured correctly
+                        and the system can send emails automatically.
                     </p>
                 </div>
-                
-                <h3>📋 Configuración Verificada:</h3>
+
+                <h3>📋 Configuration Verified:</h3>
                 <ul>
-                    <li>✅ API Key configurada</li>
-                    <li>✅ Email remitente: {from_email}</li>
-                    <li>✅ Sistema de notificaciones activo</li>
+                    <li>✅ API Key configured</li>
+                    <li>✅ Sender email: {from_email}</li>
+                    <li>✅ Notification system active</li>
                 </ul>
-                
-                <h3>🚀 Próximos Pasos:</h3>
-                <p>El sistema ahora puede enviar emails automáticamente cuando:</p>
+
+                <h3>🚀 Next Steps:</h3>
+                <p>The system can now send emails automatically when:</p>
                 <ul>
-                    <li>📊 Un lead tiene score >= 60%</li>
-                    <li>📦 Se detecta una queja de producto</li>
-                    <li>🎫 Se clasifica un ticket (siempre envía análisis del AI)</li>
+                    <li>📊 A lead has score >= 60%</li>
+                    <li>📦 A product complaint is detected</li>
+                    <li>🎫 A ticket is classified (always sends AI analysis)</li>
                 </ul>
             </div>
             
@@ -130,23 +130,23 @@ def test_send_email(to_email: str):
         
         if result.get("success"):
             if result.get("simulated"):
-                print("⚠️  Email SIMULADO (Resend no está completamente configurado)")
-                print("   Esto significa que el email no se envió realmente")
+                print("⚠️  Email SIMULATED (Resend is not fully configured)")
+                print("   This means the email was not actually sent")
             else:
-                print("✅ Email enviado exitosamente!")
+                print("✅ Email sent successfully!")
                 print(f"   Message ID: {result.get('message_id', 'N/A')}")
                 print(f"   To: {result.get('to')}")
                 print(f"   From: {result.get('from', get_resend_config().from_email)}")
-                print("\n💡 Revisa tu bandeja de entrada (y spam) en unos segundos")
+                print("\n💡 Check your inbox (and spam) in a few seconds")
         else:
-            print(f"❌ Error al enviar email: {result.get('error', 'Unknown error')}")
+            print(f"❌ Error sending email: {result.get('error', 'Unknown error')}")
             return False
         
         print("=" * 60)
         return True
-        
+
     except Exception as e:
-        print(f"❌ Error inesperado: {e}")
+        print(f"❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -160,9 +160,9 @@ def main():
 Examples:
   # Test with default notification email
   python scripts/test_resend.py
-  
+
   # Test with specific email
-  python scripts/test_resend.py --to tu-email@ejemplo.com
+  python scripts/test_resend.py --to your-email@example.com
         """
     )
     
@@ -180,39 +180,39 @@ Examples:
     )
     
     args = parser.parse_args()
-    
-    print("🧪 Test de Configuración de Resend")
+
+    print("🧪 Resend Configuration Test")
     print("=" * 60)
     print()
-    
+
     # Test configuration
     if not test_resend_config():
-        print("\n❌ Configuración incorrecta. Por favor revisa tu .env")
+        print("\n❌ Incorrect configuration. Please check your .env")
         sys.exit(1)
-    
+
     if args.config_only:
-        print("\n✅ Configuración verificada correctamente")
+        print("\n✅ Configuration verified successfully")
         sys.exit(0)
-    
+
     # Determine recipient
     config = get_resend_config()
     to_email = args.to or config.notification_email or config.from_email
-    
+
     if not to_email:
-        print("\n❌ No se puede determinar el email destinatario")
-        print("   Configura NOTIFICATION_EMAIL en .env o usa --to")
+        print("\n❌ Cannot determine recipient email")
+        print("   Configure NOTIFICATION_EMAIL in .env or use --to")
         sys.exit(1)
-    
+
     # Test sending email
     if test_send_email(to_email):
-        print("\n✅ Test completado exitosamente!")
-        print("\n💡 Si recibiste el email, Resend está funcionando correctamente")
-        print("   Si no lo recibes, revisa:")
-        print("   - Bandeja de spam")
-        print("   - Logs de Resend en https://resend.com/emails")
-        print("   - Que el email destinatario sea válido")
+        print("\n✅ Test completed successfully!")
+        print("\n💡 If you received the email, Resend is working correctly")
+        print("   If you didn't receive it, check:")
+        print("   - Spam folder")
+        print("   - Resend logs at https://resend.com/emails")
+        print("   - That the recipient email is valid")
     else:
-        print("\n❌ Test falló")
+        print("\n❌ Test failed")
         sys.exit(1)
 
 

@@ -82,27 +82,41 @@ def authenticate() -> tuple[str, str]:
         return _access_token, _instance_url
     
     config = get_salesforce_config()
-    
+
     # Real authentication
     try:
-        payload = {
-            "grant_type": "password",
-            "client_id": config.client_id,
-            "client_secret": config.client_secret,
-            "username": config.username,
-            "password": f"{config.password}{config.security_token}"
-        }
-        
+        # Build OAuth payload based on auth type
+        if config.auth_type == "client_credentials":
+            # OAuth2 Client Credentials flow (more secure, no user credentials needed)
+            payload = {
+                "grant_type": "client_credentials",
+                "client_id": config.client_id,
+                "client_secret": config.client_secret
+            }
+            logger.info("🔐 Using OAuth2 Client Credentials flow")
+        else:
+            # OAuth2 Password flow (requires username + password + security token)
+            payload = {
+                "grant_type": "password",
+                "client_id": config.client_id,
+                "client_secret": config.client_secret,
+                "username": config.username,
+                "password": f"{config.password}{config.security_token}"
+            }
+            logger.info("🔐 Using OAuth2 Password flow")
+
         response = requests.post(config.login_url, data=payload, timeout=30)
         response.raise_for_status()
-        
+
         data = response.json()
         _access_token = data["access_token"]
-        _instance_url = data["instance_url"]
-        
+        _instance_url = data.get("instance_url") or config.instance_url
+
         logger.info(f"✅ Authenticated with Salesforce: {_instance_url}")
+        logger.info(f"   Auth type: {config.auth_type}")
+        logger.info(f"   Token: {_access_token[:20]}...")
         return _access_token, _instance_url
-        
+
     except Exception as e:
         logger.warning(f"⚠️ Salesforce auth failed, falling back to MOCK mode: {e}")
         _access_token = "mock_access_token"

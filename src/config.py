@@ -13,18 +13,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class SalesforceSettings(BaseSettings):
     """Salesforce API configuration."""
-    
+
     model_config = SettingsConfigDict(env_prefix="SALESFORCE_")
-    
+
     mode: Literal["mock", "real"] = Field(
         default="mock",
         description="Salesforce connection mode: 'mock' or 'real'"
     )
+    auth_type: Literal["password", "client_credentials"] = Field(
+        default="password",
+        description="OAuth flow type: 'password' or 'client_credentials'"
+    )
     client_id: str = Field(default="", description="Connected App Client ID")
     client_secret: str = Field(default="", description="Connected App Client Secret")
-    username: str = Field(default="", description="Salesforce Username")
-    password: str = Field(default="", description="Salesforce Password")
-    security_token: str = Field(default="", description="Salesforce Security Token")
+    username: str = Field(default="", description="Salesforce Username (for password flow)")
+    password: str = Field(default="", description="Salesforce Password (for password flow)")
+    security_token: str = Field(default="", description="Salesforce Security Token (for password flow)")
     instance_url: str = Field(
         default="https://login.salesforce.com",
         description="Salesforce Instance URL"

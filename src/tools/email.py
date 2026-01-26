@@ -508,7 +508,7 @@ def send_product_complaint_alert(
 def get_it_support_redirect() -> dict:
     """
     Get IT support redirect information.
-    
+
     Returns:
         dict with redirect URL and message
     """
@@ -517,12 +517,12 @@ def get_it_support_redirect() -> dict:
     return {
         "action": "redirect_to_it",
         "url": it_url,
-        "message": f"Este ticket ha sido identificado como un tema de IT/Soporte técnico. Por favor visite: {it_url}",
+        "message": f"This ticket has been identified as an IT/Technical Support issue. Please visit: {it_url}",
         "instructions": [
-            "1. Visite el portal de IT Support",
-            "2. Inicie sesión con sus credenciales corporativas",
-            "3. Abra un nuevo ticket en la categoría correspondiente",
-            "4. Incluya el número de referencia original del caso"
+            "1. Visit the IT Support portal",
+            "2. Log in with your corporate credentials",
+            "3. Open a new ticket in the appropriate category",
+            "4. Include the original case reference number"
         ]
     }
 

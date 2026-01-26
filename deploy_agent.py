@@ -26,6 +26,8 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv, dotenv_values
+import os
+os.environ["GOOGLE_AUTH_DISABLE_GCE_METADATA"] = "1"
 
 # Configure logging
 logging.basicConfig(
