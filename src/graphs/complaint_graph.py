@@ -133,15 +133,22 @@ def fetch_ticket(state: ComplaintState) -> dict:
         logger.info(f"Case ID provided without content, fetching from Salesforce: {case_id}")
         full_case = salesforce.get_case_by_id(case_id)
 
-        if full_case:
+        if full_case and (full_case.get("Subject") or full_case.get("Description")):
             logger.info(f"Fetched full case: {case_id} - {full_case.get('Subject', 'No Subject')[:50]}")
             return {
                 "case": full_case,
                 "actions_done": [f"fetch_ticket:fetched_by_id:{case_id}"]
             }
         else:
-            logger.warning(f"Could not fetch case {case_id} from Salesforce, using provided data")
-            return {"actions_done": [f"fetch_ticket:existing_incomplete:{case_id}"]}
+            logger.error(f"ERROR: Could not fetch case {case_id} from Salesforce or case has no content")
+            logger.error(f"To classify a case, provide either:")
+            logger.error(f"  1. Case ID that exists in Salesforce with Subject/Description")
+            logger.error(f"  2. Full case data with Subject and/or Description fields")
+            # Return empty case to trigger error in classify_complaint
+            return {
+                "case": {"Id": case_id, "error": f"Case {case_id} not found or has no content"},
+                "actions_done": [f"fetch_ticket:error:case_not_found:{case_id}"]
+            }
 
     # No case provided - fetch new cases
     cases = salesforce.get_new_cases(limit=1)
@@ -181,15 +188,23 @@ def classify_complaint(state: ComplaintState) -> dict:
     description = case.get("Description", "")
     
     if not subject and not description:
-        logger.warning("No content to classify")
+        logger.error("ERROR: No content to classify - case has no Subject or Description")
+        logger.error(f"Case data received: {case}")
         return {
             "classification": {
                 "is_product_complaint": False,
                 "is_it_support": False,
                 "product_category": "none",
-                "reasoning": "No content provided"
+                "confidence": 0.0,
+                "reasoning": "ERROR: No content to classify. The case has no Subject or Description. Please provide case data with Subject and/or Description fields.",
+                "sentiment": "unknown",
+                "urgency": "unknown",
+                "complaint_summary": "ERROR: No content provided",
+                "suggested_response": "",
+                "error": True,
+                "error_message": "Case has no Subject or Description to classify"
             },
-            "actions_done": ["classify_complaint:no_content"]
+            "actions_done": ["classify_complaint:error:no_content"]
         }
     
     if use_llm:
