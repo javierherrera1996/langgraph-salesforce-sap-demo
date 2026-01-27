@@ -47,13 +47,21 @@ def get_env_vars_from_file() -> dict:
         
         # Salesforce
         "SALESFORCE_MODE",
+        "SALESFORCE_INSTANCE_URL",
         "SALESFORCE_CLIENT_ID",
         "SALESFORCE_CLIENT_SECRET",
+        "SALESFORCE_AUTH_TYPE",
         "SALESFORCE_USERNAME",
         "SALESFORCE_PASSWORD",
         "SALESFORCE_SECURITY_TOKEN",
         "SALESFORCE_LOGIN_URL",
         "SALESFORCE_API_VERSION",
+
+        # Routing (both naming conventions)
+        "DEFAULT_AE_OWNER_ID",
+        "DEFAULT_SDR_OWNER_ID",
+        "DEFAULT_NURTURE_OWNER_ID",
+        "DEFAULT_ESCALATION_OWNER_ID",
         
         # SAP
         "SAP_MODE",
