@@ -348,24 +348,38 @@ class ComplaintClassificationAgentApp:
     ) -> dict:
         """
         Classify a complaint as Product-related or IT Support.
-        
+
         Args:
             case_data: Salesforce case data
             use_llm: Override LLM usage
-            
+
         Returns:
             Classification results with action taken
         """
+        # DEBUG: Log what we received
+        logger.info("=" * 60)
+        logger.info("🔍 DEBUG: classify_complaint called")
+        logger.info(f"   case_data type: {type(case_data)}")
+        logger.info(f"   case_data: {case_data}")
+        logger.info(f"   use_llm: {use_llm}")
+        logger.info("=" * 60)
+
         if self._graph is None:
             self.set_up()
-        
+
         should_use_llm = use_llm if use_llm is not None else self.use_llm
-        
+
         from src.graphs.complaint_graph import create_initial_complaint_state
         from src.tools import salesforce
-        
+
         salesforce.authenticate()
-        
+
+        # Ensure case_data is a dict with content
+        if case_data is None:
+            case_data = {}
+            logger.warning("⚠️ case_data is None, using empty dict")
+
+        logger.info(f"🔍 DEBUG: Creating initial state with case_data keys: {list(case_data.keys()) if case_data else 'empty'}")
         initial_state = create_initial_complaint_state(case_data or {}, use_llm=should_use_llm)
         
         config = {
@@ -484,7 +498,7 @@ class BeldenSalesAgentApp:
     ) -> dict:
         """
         Main query method for Agent Engine.
-        
+
         Args:
             action: The action to perform:
                 - "qualify_lead": Qualify a Salesforce lead (sends email if score >= 60%)
@@ -494,13 +508,23 @@ class BeldenSalesAgentApp:
             lead_data: Lead data for qualify_lead action
             case_data: Case data for classify_complaint action
             use_llm: Override LLM usage
-            
+
         Returns:
             dict with action results
         """
+        # DEBUG: Log all incoming parameters
+        logger.info("=" * 70)
+        logger.info("🚀 AGENT QUERY RECEIVED")
+        logger.info("=" * 70)
+        logger.info(f"   action: {action}")
+        logger.info(f"   lead_data type: {type(lead_data)}, value: {lead_data}")
+        logger.info(f"   case_data type: {type(case_data)}, value: {case_data}")
+        logger.info(f"   use_llm: {use_llm}")
+        logger.info("=" * 70)
+
         if self._lead_agent is None:
             self.set_up()
-        
+
         action = action.lower().strip()
         
         if action == "qualify_lead":

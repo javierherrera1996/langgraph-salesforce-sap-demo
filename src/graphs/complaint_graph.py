@@ -114,10 +114,23 @@ def fetch_ticket(state: ComplaintState) -> dict:
     """
     logger.info("=== NODE: FetchTicket (Complaint) ===")
 
+    # DEBUG: Log the full state we received
+    logger.info("🔍 DEBUG: Full state received:")
+    logger.info(f"   state type: {type(state)}")
+    logger.info(f"   state keys: {list(state.keys()) if isinstance(state, dict) else 'not a dict'}")
+    logger.info(f"   state['case']: {state.get('case', 'NOT FOUND')}")
+
     # Ensure Salesforce is authenticated
     salesforce.authenticate()
 
     case = state.get("case", {})
+
+    # DEBUG: Log case data
+    logger.info(f"🔍 DEBUG: case extracted:")
+    logger.info(f"   case type: {type(case)}")
+    logger.info(f"   case keys: {list(case.keys()) if isinstance(case, dict) else 'not a dict'}")
+    logger.info(f"   case Subject: {case.get('Subject', 'NOT FOUND')}")
+    logger.info(f"   case Description: {(case.get('Description', '') or '')[:100]}...")
 
     if case and case.get("Id"):
         case_id = case["Id"]

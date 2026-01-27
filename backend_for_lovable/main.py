@@ -160,12 +160,27 @@ async def chat_with_agent(request: ChatRequest):
             logger.info("Classifying ticket...")
             # Extract 'case' from ticket_data if it exists, otherwise use ticket_data directly
             case_data = request.ticket_data.get('case', request.ticket_data)
-            logger.info(f"Case data: Subject={case_data.get('Subject', 'N/A')}, Description={case_data.get('Description', 'N/A')[:50]}...")
+
+            # Safe logging - handle None values
+            subject = case_data.get('Subject') or 'N/A'
+            description = case_data.get('Description') or ''
+            description_preview = description[:50] if description else 'N/A'
+            logger.info(f"Case data: Subject={subject}, Description={description_preview}...")
+
+            # Log full case_data for debugging
+            logger.info(f"Full case_data keys: {list(case_data.keys())}")
+            logger.info(f"Full case_data: {case_data}")
+
+            # Call agent with explicit parameters
+            logger.info("Calling agent.query with classify_complaint action...")
             result = agent.query(
                 action="classify_complaint",
                 case_data=case_data,
                 use_llm=True
             )
+
+            # Log the raw result for debugging
+            logger.info(f"Agent result: {result}")
 
             # Format response
             response_text = f"Ticket classified.\n"
