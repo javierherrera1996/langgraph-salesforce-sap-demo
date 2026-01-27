@@ -141,9 +141,12 @@ async def chat_with_agent(request: ChatRequest):
         # Determine action based on request data
         if request.lead_data:
             logger.info("Qualifying lead...")
+            # Extract 'lead' from lead_data if it exists, otherwise use lead_data directly
+            lead_data = request.lead_data.get('lead', request.lead_data)
+            logger.info(f"Lead data: Company={lead_data.get('Company', 'N/A')}, Title={lead_data.get('Title', 'N/A')}")
             result = agent.query(
                 action="qualify_lead",
-                lead_data=request.lead_data,
+                lead_data=lead_data,
                 use_llm=True
             )
 
@@ -155,9 +158,12 @@ async def chat_with_agent(request: ChatRequest):
 
         elif request.ticket_data:
             logger.info("Classifying ticket...")
+            # Extract 'case' from ticket_data if it exists, otherwise use ticket_data directly
+            case_data = request.ticket_data.get('case', request.ticket_data)
+            logger.info(f"Case data: Subject={case_data.get('Subject', 'N/A')}, Description={case_data.get('Description', 'N/A')[:50]}...")
             result = agent.query(
                 action="classify_complaint",
-                case_data=request.ticket_data,
+                case_data=case_data,
                 use_llm=True
             )
 
