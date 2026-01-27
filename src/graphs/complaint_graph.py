@@ -132,11 +132,11 @@ def fetch_ticket(state: ComplaintState) -> dict:
     logger.info(f"   case Subject: {case.get('Subject', 'NOT FOUND')}")
     logger.info(f"   case Description: {(case.get('Description', '') or '')[:100]}...")
 
+    # Check if case has content (Subject or Description)
+    has_content = case.get("Subject") or case.get("Description")
+
     if case and case.get("Id"):
         case_id = case["Id"]
-
-        # Check if we have the necessary data for classification
-        has_content = case.get("Subject") or case.get("Description")
 
         if has_content:
             logger.info(f"Using provided case with content: {case_id}")
@@ -163,7 +163,20 @@ def fetch_ticket(state: ComplaintState) -> dict:
                 "actions_done": [f"fetch_ticket:error:case_not_found:{case_id}"]
             }
 
-    # No case provided - fetch new cases
+    # Case has content but no ID - this is from external system (frontend)
+    # Generate a temporary ID and use the provided data
+    if has_content:
+        import uuid
+        external_id = f"EXT-{uuid.uuid4().hex[:8].upper()}"
+        case["Id"] = external_id
+        logger.info(f"📱 Case from external system (frontend) - assigned temporary ID: {external_id}")
+        logger.info(f"   Subject: {case.get('Subject', 'N/A')}")
+        return {
+            "case": case,
+            "actions_done": [f"fetch_ticket:external:{external_id}"]
+        }
+
+    # No case provided and no content - fetch new cases from Salesforce
     cases = salesforce.get_new_cases(limit=1)
 
     if not cases:
@@ -491,13 +504,22 @@ def execute_actions(state: ComplaintState) -> dict:
 {classification.get('suggested_response') or 'N/A'}
     """.strip()
     
-    comment_result = salesforce.post_case_comment(case_id, comment)
-    if comment_result.get("success"):
-        actions_executed.append("sf:post_comment")
-        logger.info(f"✅ Posted comment to Salesforce case {case_id}")
+    # Only post comment to Salesforce if case_id looks like a real Salesforce ID
+    # Salesforce Case IDs start with "500" (15 or 18 chars)
+    is_salesforce_case = case_id and case_id.startswith("500") and len(case_id) >= 15
+
+    if is_salesforce_case:
+        comment_result = salesforce.post_case_comment(case_id, comment)
+        if comment_result.get("success"):
+            actions_executed.append("sf:post_comment")
+            logger.info(f"✅ Posted comment to Salesforce case {case_id}")
+        else:
+            actions_executed.append(f"sf:post_comment:failed:{comment_result.get('error', 'unknown')[:30]}")
+            logger.warning(f"⚠️ Could not post comment to case {case_id}")
     else:
-        actions_executed.append(f"sf:post_comment:skipped:{comment_result.get('error', 'unknown')[:50]}")
-        logger.warning(f"⚠️ Could not post comment to case {case_id} (case may not exist in Salesforce)")
+        # Case is from external system (frontend), skip Salesforce comment
+        actions_executed.append("sf:post_comment:skipped:external_case")
+        logger.info(f"ℹ️ Skipping Salesforce comment - case {case_id} is from external system (not a Salesforce ID)")
 
     logger.info(f"Executed {len(actions_executed)} actions")
     
