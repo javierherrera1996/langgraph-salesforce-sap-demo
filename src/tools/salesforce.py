@@ -667,37 +667,49 @@ def get_case_by_id(case_id: str) -> Optional[dict]:
 def post_case_comment(case_id: str, text: str) -> dict:
     """
     Post a comment to a case.
-    
+
     Args:
         case_id: Salesforce Case ID
         text: Comment text
-        
+
     Returns:
-        Created comment details
+        Created comment details (or error info if case doesn't exist)
     """
     text = _sanitize_text(text)
     logger.info(f"Posting comment to case {case_id}")
-    
+
     if _is_mock_mode():
         comment_id = f"00a5g00000Mock{case_id[-4:]}"
         logger.info(f"[MOCK] Posted comment {comment_id}")
         return {"success": True, "id": comment_id, "case_id": case_id}
-    
-    url = f"{_get_api_url()}/sobjects/CaseComment"
-    response = requests.post(
-        url,
-        headers=_get_headers(),
-        json={
-            "ParentId": case_id,
-            "CommentBody": text,
-            "IsPublished": True
-        },
-        timeout=30
-    )
-    response.raise_for_status()
-    
-    result = response.json()
-    return {"success": True, "id": result.get("id"), "case_id": case_id}
+
+    try:
+        url = f"{_get_api_url()}/sobjects/CaseComment"
+        response = requests.post(
+            url,
+            headers=_get_headers(),
+            json={
+                "ParentId": case_id,
+                "CommentBody": text,
+                "IsPublished": True
+            },
+            timeout=30
+        )
+        response.raise_for_status()
+
+        result = response.json()
+        return {"success": True, "id": result.get("id"), "case_id": case_id}
+
+    except requests.exceptions.HTTPError as e:
+        # Case might not exist in Salesforce - log but don't fail
+        logger.warning(f"⚠️ Failed to post comment to case {case_id}: {e}")
+        logger.warning(f"   This is OK if the case was created externally (not in Salesforce)")
+        return {
+            "success": False,
+            "error": str(e),
+            "case_id": case_id,
+            "message": "Case may not exist in Salesforce - comment not posted"
+        }
 
 
 def update_case(case_id: str, fields: dict) -> dict:

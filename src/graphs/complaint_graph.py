@@ -491,9 +491,14 @@ def execute_actions(state: ComplaintState) -> dict:
 {classification.get('suggested_response') or 'N/A'}
     """.strip()
     
-    salesforce.post_case_comment(case_id, comment)
-    actions_executed.append("sf:post_comment")
-    
+    comment_result = salesforce.post_case_comment(case_id, comment)
+    if comment_result.get("success"):
+        actions_executed.append("sf:post_comment")
+        logger.info(f"✅ Posted comment to Salesforce case {case_id}")
+    else:
+        actions_executed.append(f"sf:post_comment:skipped:{comment_result.get('error', 'unknown')[:50]}")
+        logger.warning(f"⚠️ Could not post comment to case {case_id} (case may not exist in Salesforce)")
+
     logger.info(f"Executed {len(actions_executed)} actions")
     
     # Update decision with email status
